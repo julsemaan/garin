@@ -32,7 +32,8 @@ type TLSClientHello struct {
 }
 
 type TLSServerHello struct {
-	sessionId string
+	sessionId  string
+	serverName string
 }
 
 type TLSServerCertExchange struct {
@@ -72,6 +73,52 @@ func (self *TLSServerHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 	sessionIdLength := readUint8(buf)
 	self.sessionId = hex.EncodeToString(buf.Next(int(sessionIdLength)))
 
+	// In SSL, we have the certs directly in the server hello
+	// so we read them here
+	if !tlsPacket.isTLS() {
+		//skip cipher suite
+		buf.Next(2)
+		compressionMethod := readUint8(buf)
+		if compressionMethod != 0 {
+			log.Println("Can't decrypt certs because they are compressed and we don't know how to uncompress them...")
+		} else {
+			handshakeType := readUint8(buf)
+			if handshakeType == 11 {
+				// we skip the length of the whole
+				buf.Next(3)
+				certificates := readCertificates(buf)
+				self.serverName = certificates[0].Subject.CommonName
+			} else {
+				log.Println("Unknown SSL handshake type")
+			}
+		}
+	}
+
+}
+
+func readCertificates(buf *bytes.Buffer) []*x509.Certificate {
+	certificatesLength := readBigEndian24(buf)
+
+	log.Println("Certs length", certificatesLength)
+
+	var certificates []*x509.Certificate
+
+	i := 0
+	for i < int(certificatesLength) {
+		certificateLength := readBigEndian24(buf)
+		certificate_bytes := buf.Next(int(certificateLength))
+		tmpCertificates, err := x509.ParseCertificates(certificate_bytes)
+		if err != nil {
+			log.Println("Can't decode certificate")
+		}
+		certificate := tmpCertificates[0]
+
+		certificates = append(certificates, certificate)
+
+		i += int(certificatesLength + 1)
+	}
+
+	return certificates
 }
 
 func (self *TLSClientHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
@@ -117,26 +164,13 @@ func (self *TLSServerCertExchange) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer
 	// we skip the length of the whole
 	buf.Next(3)
 
-	certificatesLength := readBigEndian24(buf)
-
-	log.Println("Certs length", certificatesLength)
-
-	i := 0
-	for i < int(certificatesLength) {
-		certificateLength := readBigEndian24(buf)
-		certificate_bytes := buf.Next(int(certificateLength))
-		certificates, err := x509.ParseCertificates(certificate_bytes)
-		if err != nil {
-			log.Println("Can't decode certificate")
-		}
-		certificate := certificates[0]
-
-		self.certificates = append(self.certificates, certificate)
-
-		i += int(certificatesLength + 1)
-	}
+	self.certificates = readCertificates(buf)
 
 	self.serverName = self.certificates[0].Subject.CommonName
+}
+
+func (self *TLSPacket) isTLS() bool {
+	return (self.tlsVersion >= 0x301)
 }
 
 func (self *TLSPacket) Parse(buf *bytes.Buffer) {
@@ -162,9 +196,13 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 
 		// a session ID indicates the initial handshake is completed, thus won't contain our certs
 		// Most likely a cipher change
+		// But, if we are in SSL, we have the certs with the hello, so the server name will be there
 		if server_hello.sessionId == "" {
 			cert_exchange := &TLSPacket{}
 			cert_exchange.Parse(buf)
+		} else if !self.isTLS() {
+			log.Println("Dealing with non-TLS exchange")
+			self.serverName = server_hello.serverName
 		}
 
 	} else if self.handshakeType == 11 {
@@ -181,7 +219,8 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 
 func (self *Packet) Parse() {
 	if self.Ports.Src().String() == "443" || self.Ports.Dst().String() == "443" {
-		log.Println("Packet source", self.Hosts.Src().String(), ":", self.Ports.Src().String())
+		//		log.Println("Packet source", self.Hosts.Src().String(), ":", self.Ports.Src().String())
+		log.Println(self.Hosts, self.Ports)
 		buf := bytes.NewBuffer(self.Payload)
 		tlsPacket := &TLSPacket{}
 		tlsPacket.Parse(buf)
