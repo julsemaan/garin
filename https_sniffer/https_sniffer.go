@@ -19,6 +19,8 @@ type TLSPacket struct {
 	tlsVersion    uint16
 	length        uint16
 	handshakeType uint8
+
+	serverName string
 }
 
 type TLSClientHello struct {
@@ -92,6 +94,13 @@ func (self *TLSPacket) Parse() {
 			hello := TLSClientHello{}
 			hello.Parse(self, buf)
 			spew.Dump(hello)
+			if hello.serverName != "" {
+				self.serverName = hello.serverName
+			}
+		}
+
+		if self.serverName != "" {
+			log.Println("Found the following server name : ", self.serverName)
 		}
 		spew.Dump(self)
 		os.Exit(0)
