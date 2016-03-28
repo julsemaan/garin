@@ -7,8 +7,7 @@ import (
 	"encoding/hex"
 	//"github.com/davecgh/go-spew/spew"
 	"github.com/google/gopacket"
-	"log"
-	//	"os"
+	"github.com/julsemaan/WebSniffer/log"
 )
 
 type Packet struct {
@@ -80,7 +79,7 @@ func (self *TLSServerHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 		buf.Next(2)
 		compressionMethod := readUint8(buf)
 		if compressionMethod != 0 {
-			log.Println("Can't decrypt certs because they are compressed and we don't know how to uncompress them...")
+			log.Logger().Error("Can't decrypt certs because they are compressed and we don't know how to uncompress them...")
 		} else {
 			handshakeType := readUint8(buf)
 			if handshakeType == 11 {
@@ -89,7 +88,7 @@ func (self *TLSServerHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 				certificates := readCertificates(buf)
 				self.serverName = certificates[0].Subject.CommonName
 			} else {
-				log.Println("Unknown SSL handshake type")
+				log.Logger().Error("Unknown SSL handshake type")
 			}
 		}
 	}
@@ -99,8 +98,6 @@ func (self *TLSServerHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 func readCertificates(buf *bytes.Buffer) []*x509.Certificate {
 	certificatesLength := readBigEndian24(buf)
 
-	log.Println("Certs length", certificatesLength)
-
 	var certificates []*x509.Certificate
 
 	i := 0
@@ -109,7 +106,7 @@ func readCertificates(buf *bytes.Buffer) []*x509.Certificate {
 		certificate_bytes := buf.Next(int(certificateLength))
 		tmpCertificates, err := x509.ParseCertificates(certificate_bytes)
 		if err != nil {
-			log.Println("Can't decode certificate")
+			log.Logger().Error("Can't decode certificate")
 		}
 		certificate := tmpCertificates[0]
 
@@ -180,13 +177,13 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 	self.handshakeType = readUint8(buf)
 	// if its a Client Hello and we're not coming from a Server Hello
 	if self.handshakeType == 1 {
-		log.Println("Found client hello")
+		log.Logger().Debug("Found client hello")
 		client_hello := TLSClientHello{}
 		client_hello.Parse(self, buf)
 		//spew.Dump(hello)
 		self.serverName = client_hello.serverName
 	} else if self.handshakeType == 2 {
-		log.Println("Found server hello")
+		log.Logger().Debug("Found server hello")
 		// We read the whole server hello but not doing anything with it yet
 		server_hello_bytes := buf.Next(int(self.length) - 1)
 		server_hello_buf := bytes.NewBuffer(server_hello_bytes)
@@ -201,26 +198,25 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 			cert_exchange := &TLSPacket{}
 			cert_exchange.Parse(buf)
 		} else if !self.isTLS() {
-			log.Println("Dealing with non-TLS exchange")
+			log.Logger().Debug("Dealing with non-TLS exchange. Getting server name from server hello")
 			self.serverName = server_hello.serverName
 		}
 
 	} else if self.handshakeType == 11 {
-		log.Println("Found cert exchange")
+		log.Logger().Debug("Found cert exchange")
 		cert_exchange := &TLSServerCertExchange{}
 		cert_exchange.Parse(self, buf)
 		self.serverName = cert_exchange.serverName
 	}
 
 	if self.serverName != "" {
-		log.Println("Found the following server name : ", self.serverName)
+		log.Logger().Info("Found the following server name : ", self.serverName)
 	}
 }
 
 func (self *Packet) Parse() {
 	if self.Ports.Src().String() == "443" || self.Ports.Dst().String() == "443" {
-		//		log.Println("Packet source", self.Hosts.Src().String(), ":", self.Ports.Src().String())
-		log.Println(self.Hosts, self.Ports)
+		log.Logger().Debug(self.Hosts, self.Ports)
 		buf := bytes.NewBuffer(self.Payload)
 		tlsPacket := &TLSPacket{}
 		tlsPacket.Parse(buf)

@@ -21,7 +21,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/tcpassembly"
 	"github.com/julsemaan/WebSniffer/https_sniffer"
-	"log"
+	"github.com/julsemaan/WebSniffer/log"
 	"time"
 )
 
@@ -108,18 +108,18 @@ func main() {
 
 	flushDuration, err := time.ParseDuration(*flushAfter)
 	if err != nil {
-		log.Fatal("invalid flush duration: ", *flushAfter)
+		log.Logger().Critical("invalid flush duration: ", *flushAfter)
 	}
 
-	log.Printf("starting capture on interface %q", *iface)
+	log.Logger().Info("starting capture on interface %q", *iface)
 	// Set up pcap packet capture
 	//	handle, err := pcap.OpenLive(*iface, int32(*snaplen), true, flushDuration/2)
 	handle, err := pcap.OpenOffline("samples/smallFlows.pcap")
 	if err != nil {
-		log.Fatal("error opening pcap handle: ", err)
+		log.Logger().Critical("error opening pcap handle: ", err)
 	}
 	if err := handle.SetBPFFilter(*filter); err != nil {
-		log.Fatal("error setting BPF filter: ", err)
+		log.Logger().Critical("error setting BPF filter: ", err)
 	}
 
 	// Set up assembly
@@ -129,7 +129,7 @@ func main() {
 	assembler.MaxBufferedPagesPerConnection = *bufferedPerConnection
 	assembler.MaxBufferedPagesTotal = *bufferedTotal
 
-	log.Println("reading in packets")
+	log.Logger().Info("reading in packets")
 
 	// We use a DecodingLayerParser here instead of a simpler PacketSource.
 	// This approach should be measurably faster, but is also more rigid.
@@ -161,7 +161,7 @@ loop:
 		// never see packet data.
 		if time.Now().After(nextFlush) {
 			stats, _ := handle.Stats()
-			log.Printf("flushing all streams that haven't seen packets in the last 2 minutes, pcap stats: %+v", stats)
+			log.Logger().Info("flushing all streams that haven't seen packets in the last 2 minutes, pcap stats: %+v", stats)
 			assembler.FlushOlderThan(time.Now().Add(flushDuration))
 			nextFlush = time.Now().Add(flushDuration / 2)
 		}
@@ -180,20 +180,20 @@ loop:
 		if err != nil {
 			if err.Error() == "EOF" {
 				// Read all packets in the case of a pcap file
-				log.Println("Read all packets")
+				log.Logger().Info("Read all packets")
 				return
 			} else {
-				log.Printf("error getting packet: %v", err)
+				log.Logger().Errorf("error getting packet: %v", err)
 				continue
 			}
 		}
 		err = parser.DecodeLayers(data, &decoded)
 		if err != nil {
-			log.Printf("error decoding packet: %v", err)
+			log.Logger().Errorf("error decoding packet: %v", err)
 			continue
 		}
 		if *logAllPackets {
-			log.Printf("decoded the following layers: %v", decoded)
+			log.Logger().Debugf("decoded the following layers: %v", decoded)
 		}
 		byteCount += int64(len(data))
 		// Find either the IPv4 or IPv6 address to use as our network
@@ -212,13 +212,13 @@ loop:
 				if foundNetLayer {
 					assembler.AssembleWithTimestamp(netFlow, &tcp, ci.Timestamp)
 				} else {
-					log.Println("could not find IPv4 or IPv6 layer, inoring")
+					log.Logger().Debug("could not find IPv4 or IPv6 layer, inoring")
 				}
 				continue loop
 			}
 		}
-		log.Println("could not find TCP layer")
+		log.Logger().Debug("could not find TCP layer")
 	}
 	assembler.FlushAll()
-	log.Printf("processed %d bytes in %v", byteCount, time.Since(start))
+	log.Logger().Info("processed %d bytes in %v", byteCount, time.Since(start))
 }
