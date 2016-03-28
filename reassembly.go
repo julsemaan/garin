@@ -99,7 +99,7 @@ func (s *statsStream) ReassemblyComplete() {
 	//s.net, s.transport, s.start, s.end, s.bytesLen, s.packets, s.outOfOrder,
 	//float64(s.bytesLen)/diffSecs, float64(s.packets)/diffSecs, s.skipped)
 
-	p := https_sniffer.TLSPacket{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
+	p := https_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
 	p.Parse()
 }
 

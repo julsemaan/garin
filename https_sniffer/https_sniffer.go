@@ -2,21 +2,24 @@ package https_sniffer
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/binary"
 	"encoding/hex"
-	"github.com/davecgh/go-spew/spew"
+	//"github.com/davecgh/go-spew/spew"
 	"github.com/google/gopacket"
 	"log"
-	"os"
+	//	"os"
 )
 
-type TLSPacket struct {
+type Packet struct {
 	Hosts   gopacket.Flow
 	Ports   gopacket.Flow
 	Payload []byte
+}
 
-	contentType   uint8
+type TLSPacket struct {
 	tlsVersion    uint16
+	contentType   uint8
 	length        uint16
 	handshakeType uint8
 
@@ -24,9 +27,17 @@ type TLSPacket struct {
 }
 
 type TLSClientHello struct {
-	tlsVersion uint16
 	sessionId  string
 	serverName string
+}
+
+type TLSServerHello struct {
+	sessionId string
+}
+
+type TLSServerCertExchange struct {
+	serverName   string
+	certificates []*x509.Certificate
 }
 
 func readBigEndian16(buf *bytes.Buffer) uint16 {
@@ -35,16 +46,36 @@ func readBigEndian16(buf *bytes.Buffer) uint16 {
 	return x
 }
 
+func readBigEndian24(buf *bytes.Buffer) uint32 {
+	threeBytesEndian := buf.Next(3)
+	fourBytesEndian := append([]byte{0}, threeBytesEndian...)
+	tmpBuf := bytes.NewBuffer(fourBytesEndian)
+
+	var x uint32
+	binary.Read(tmpBuf, binary.BigEndian, &x)
+	return x
+}
+
 func readUint8(buf *bytes.Buffer) uint8 {
 	return uint8(buf.Next(1)[0])
 }
 
+func readTLSHeader(buf *bytes.Buffer) {
+	// 3 bytes length, 2 bytes TLS version 4 bytes timestamp, 28 random bytes
+	buf.Next(3 + 2 + 4 + 28)
+}
+
+func (self *TLSServerHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
+	readTLSHeader(buf)
+
+	// Read session ID if there
+	sessionIdLength := readUint8(buf)
+	self.sessionId = hex.EncodeToString(buf.Next(int(sessionIdLength)))
+
+}
+
 func (self *TLSClientHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
-	//we skip the length
-	buf.Next(3)
-	self.tlsVersion = readBigEndian16(buf)
-	// 4 bytes timestamp, 28 random bytes
-	buf.Next(4 + 28)
+	readTLSHeader(buf)
 
 	// Read session ID if there
 	sessionIdLength := readUint8(buf)
@@ -82,27 +113,79 @@ func (self *TLSClientHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 	}
 }
 
-func (self *TLSPacket) Parse() {
-	if self.Ports.Src().String() == "443" || self.Ports.Dst().String() == "443" {
-		buf := bytes.NewBuffer(self.Payload)
-		self.contentType = readUint8(buf)
-		self.tlsVersion = readBigEndian16(buf)
-		self.length = readBigEndian16(buf)
-		self.handshakeType = readUint8(buf)
-		log.Println("Packet source", self.Hosts.Src().String(), ":", self.Ports.Src().String())
-		if self.handshakeType == 1 {
-			hello := TLSClientHello{}
-			hello.Parse(self, buf)
-			spew.Dump(hello)
-			if hello.serverName != "" {
-				self.serverName = hello.serverName
-			}
+func (self *TLSServerCertExchange) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
+	// we skip the length of the whole
+	buf.Next(3)
+
+	certificatesLength := readBigEndian24(buf)
+
+	log.Println("Certs length", certificatesLength)
+
+	i := 0
+	for i < int(certificatesLength) {
+		certificateLength := readBigEndian24(buf)
+		certificate_bytes := buf.Next(int(certificateLength))
+		certificates, err := x509.ParseCertificates(certificate_bytes)
+		if err != nil {
+			log.Println("Can't decode certificate")
+		}
+		certificate := certificates[0]
+
+		self.certificates = append(self.certificates, certificate)
+
+		i += int(certificatesLength + 1)
+	}
+
+	self.serverName = self.certificates[0].Subject.CommonName
+}
+
+func (self *TLSPacket) Parse(buf *bytes.Buffer) {
+	self.contentType = readUint8(buf)
+	self.tlsVersion = readBigEndian16(buf)
+	self.length = readBigEndian16(buf)
+	self.handshakeType = readUint8(buf)
+	// if its a Client Hello and we're not coming from a Server Hello
+	if self.handshakeType == 1 {
+		log.Println("Found client hello")
+		client_hello := TLSClientHello{}
+		client_hello.Parse(self, buf)
+		//spew.Dump(hello)
+		self.serverName = client_hello.serverName
+	} else if self.handshakeType == 2 {
+		log.Println("Found server hello")
+		// We read the whole server hello but not doing anything with it yet
+		server_hello_bytes := buf.Next(int(self.length) - 1)
+		server_hello_buf := bytes.NewBuffer(server_hello_bytes)
+
+		server_hello := TLSServerHello{}
+		server_hello.Parse(self, server_hello_buf)
+
+		// a session ID indicates the initial handshake is completed, thus won't contain our certs
+		// Most likely a cipher change
+		if server_hello.sessionId == "" {
+			cert_exchange := &TLSPacket{}
+			cert_exchange.Parse(buf)
 		}
 
-		if self.serverName != "" {
-			log.Println("Found the following server name : ", self.serverName)
-		}
-		spew.Dump(self)
-		os.Exit(0)
+	} else if self.handshakeType == 11 {
+		log.Println("Found cert exchange")
+		cert_exchange := &TLSServerCertExchange{}
+		cert_exchange.Parse(self, buf)
+		self.serverName = cert_exchange.serverName
+	}
+
+	if self.serverName != "" {
+		log.Println("Found the following server name : ", self.serverName)
+	}
+}
+
+func (self *Packet) Parse() {
+	if self.Ports.Src().String() == "443" || self.Ports.Dst().String() == "443" {
+		log.Println("Packet source", self.Hosts.Src().String(), ":", self.Ports.Src().String())
+		buf := bytes.NewBuffer(self.Payload)
+		tlsPacket := &TLSPacket{}
+		tlsPacket.Parse(buf)
+		//		spew.Dump(self)
+		//		os.Exit(0)
 	}
 }
