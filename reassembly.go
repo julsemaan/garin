@@ -20,6 +20,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/tcpassembly"
+	"github.com/julsemaan/WebSniffer/http_sniffer"
 	"github.com/julsemaan/WebSniffer/https_sniffer"
 	"github.com/julsemaan/WebSniffer/log"
 	"time"
@@ -104,8 +105,12 @@ func (s *statsStream) ReassemblyComplete() {
 			log.Logger().Error("Error decoding packet. This may be normal.", r)
 		}
 	}()
-	p := https_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
-	p.Parse()
+
+	http_packet := http_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
+	http_packet.Parse()
+
+	https_packet := https_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
+	https_packet.Parse()
 }
 
 func main() {
@@ -119,7 +124,7 @@ func main() {
 	log.Logger().Info("starting capture on interface %q", *iface)
 	// Set up pcap packet capture
 	//	handle, err := pcap.OpenLive(*iface, int32(*snaplen), true, flushDuration/2)
-	handle, err := pcap.OpenOffline("samples/smallFlows.pcap")
+	handle, err := pcap.OpenOffline("samples/bigFlows.pcap")
 	if err != nil {
 		log.Logger().Critical("error opening pcap handle: ", err)
 	}

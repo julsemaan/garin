@@ -12,7 +12,7 @@ func Logger() *logging.Logger {
 		logger = logging.MustGetLogger("WebSniffer")
 		var backend1 = logging.NewLogBackend(os.Stderr, "", 0)
 		var backend1Leveled = logging.AddModuleLevel(backend1)
-		backend1Leveled.SetLevel(logging.DEBUG, "")
+		backend1Leveled.SetLevel(logging.INFO, "")
 		logging.SetBackend(backend1Leveled)
 	}
 	return logger
