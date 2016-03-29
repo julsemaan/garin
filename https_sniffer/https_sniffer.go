@@ -69,7 +69,7 @@ func (self *TLSServerHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 			if handshakeType == 11 {
 				// we skip the length of the whole
 				buf.Next(3)
-				certificates := readCertificates(buf)
+				certificates := self.readCertificates(buf)
 				self.serverName = certificates[0].Subject.CommonName
 			} else {
 				log.Logger().Error("Unknown SSL handshake type")
@@ -79,7 +79,7 @@ func (self *TLSServerHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 
 }
 
-func readCertificates(buf *bytes.Buffer) []*x509.Certificate {
+func (self *TLSExchange) readCertificates(buf *bytes.Buffer) []*x509.Certificate {
 	certificatesLength := util.ReadBigEndian24(buf)
 
 	var certificates []*x509.Certificate
@@ -150,7 +150,7 @@ func (self *TLSServerCertExchange) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer
 	// we skip the length of the whole
 	buf.Next(3)
 
-	self.certificates = readCertificates(buf)
+	self.certificates = self.readCertificates(buf)
 
 	self.serverName = self.certificates[0].Subject.CommonName
 }
