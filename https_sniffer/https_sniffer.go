@@ -119,6 +119,11 @@ func readCertificates(buf *bytes.Buffer) []*x509.Certificate {
 }
 
 func (self *TLSClientHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
+	// Non-TLS packets don't contain the server name extension
+	if !tlsPacket.isTLS() {
+		return
+	}
+
 	readTLSHeader(buf)
 
 	// Read session ID if there
