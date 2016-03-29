@@ -1,16 +1,3 @@
-// Copyright 2012 Google, Inc. All rights reserved.
-//
-// Use of this source code is governed by a BSD-style license
-// that can be found in the LICENSE file in the root of the source
-// tree.
-
-// This binary provides sample code for using the gopacket TCP assembler raw,
-// without the help of the tcpreader library.  It watches TCP streams and
-// reports statistics on completed streams.
-//
-// It also uses gopacket.DecodingLayerParser instead of the normal
-// gopacket.PacketSource, to highlight the methods, pros, and cons of this
-// approach.
 package main
 
 import (
