@@ -3,11 +3,11 @@ package https_sniffer
 import (
 	"bytes"
 	"crypto/x509"
-	"encoding/binary"
 	"encoding/hex"
 	//"github.com/davecgh/go-spew/spew"
 	"github.com/google/gopacket"
 	"github.com/julsemaan/WebSniffer/log"
+	"github.com/julsemaan/WebSniffer/util"
 )
 
 type Packet struct {
@@ -25,39 +25,23 @@ type TLSPacket struct {
 	serverName string
 }
 
-type TLSClientHello struct {
-	sessionId  string
+type TLSExchange struct {
 	serverName string
+}
+
+type TLSClientHello struct {
+	TLSExchange
+	sessionId string
 }
 
 type TLSServerHello struct {
-	sessionId  string
-	serverName string
+	TLSExchange
+	sessionId string
 }
 
 type TLSServerCertExchange struct {
-	serverName   string
+	TLSExchange
 	certificates []*x509.Certificate
-}
-
-func readBigEndian16(buf *bytes.Buffer) uint16 {
-	var x uint16
-	binary.Read(buf, binary.BigEndian, &x)
-	return x
-}
-
-func readBigEndian24(buf *bytes.Buffer) uint32 {
-	threeBytesEndian := buf.Next(3)
-	fourBytesEndian := append([]byte{0}, threeBytesEndian...)
-	tmpBuf := bytes.NewBuffer(fourBytesEndian)
-
-	var x uint32
-	binary.Read(tmpBuf, binary.BigEndian, &x)
-	return x
-}
-
-func readUint8(buf *bytes.Buffer) uint8 {
-	return uint8(buf.Next(1)[0])
 }
 
 func readTLSHeader(buf *bytes.Buffer) {
@@ -69,7 +53,7 @@ func (self *TLSServerHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 	readTLSHeader(buf)
 
 	// Read session ID if there
-	sessionIdLength := readUint8(buf)
+	sessionIdLength := util.ReadUint8(buf)
 	self.sessionId = hex.EncodeToString(buf.Next(int(sessionIdLength)))
 
 	// In SSL, we have the certs directly in the server hello
@@ -77,11 +61,11 @@ func (self *TLSServerHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 	if !tlsPacket.isTLS() {
 		//skip cipher suite
 		buf.Next(2)
-		compressionMethod := readUint8(buf)
+		compressionMethod := util.ReadUint8(buf)
 		if compressionMethod != 0 {
 			log.Logger().Error("Can't decrypt certs because they are compressed and we don't know how to uncompress them...")
 		} else {
-			handshakeType := readUint8(buf)
+			handshakeType := util.ReadUint8(buf)
 			if handshakeType == 11 {
 				// we skip the length of the whole
 				buf.Next(3)
@@ -96,13 +80,13 @@ func (self *TLSServerHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 }
 
 func readCertificates(buf *bytes.Buffer) []*x509.Certificate {
-	certificatesLength := readBigEndian24(buf)
+	certificatesLength := util.ReadBigEndian24(buf)
 
 	var certificates []*x509.Certificate
 
 	i := 0
 	for i < int(certificatesLength) {
-		certificateLength := readBigEndian24(buf)
+		certificateLength := util.ReadBigEndian24(buf)
 		certificate_bytes := buf.Next(int(certificateLength))
 		tmpCertificates, err := x509.ParseCertificates(certificate_bytes)
 		if err != nil {
@@ -127,29 +111,29 @@ func (self *TLSClientHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 	readTLSHeader(buf)
 
 	// Read session ID if there
-	sessionIdLength := readUint8(buf)
+	sessionIdLength := util.ReadUint8(buf)
 	self.sessionId = hex.EncodeToString(buf.Next(int(sessionIdLength)))
 
 	// Read ciphers suites
-	cipherSuitesLength := readBigEndian16(buf)
+	cipherSuitesLength := util.ReadBigEndian16(buf)
 	buf.Next(int(cipherSuitesLength))
 
 	// Read compression methods
-	compressionMethodsLength := readUint8(buf)
+	compressionMethodsLength := util.ReadUint8(buf)
 	buf.Next(int(compressionMethodsLength))
 
-	extensionsLength := int(readBigEndian16(buf))
+	extensionsLength := int(util.ReadBigEndian16(buf))
 	if extensionsLength > 0 {
 		i := 0
 		for i < extensionsLength {
-			extensionType := readBigEndian16(buf)
-			extensionLength := readBigEndian16(buf)
+			extensionType := util.ReadBigEndian16(buf)
+			extensionLength := util.ReadBigEndian16(buf)
 
 			// if its the server name, then we analyse. Otherwise, we skip the extension
 			if extensionType == 0 {
 				// list length (2 bytes), server name type 1 byte, length 2 bytes
 				buf.Next(3)
-				serverNameLength := readBigEndian16(buf)
+				serverNameLength := util.ReadBigEndian16(buf)
 				self.serverName = string(buf.Next(int(serverNameLength)))
 				break
 			} else {
@@ -176,10 +160,10 @@ func (self *TLSPacket) isTLS() bool {
 }
 
 func (self *TLSPacket) Parse(buf *bytes.Buffer) {
-	self.contentType = readUint8(buf)
-	self.tlsVersion = readBigEndian16(buf)
-	self.length = readBigEndian16(buf)
-	self.handshakeType = readUint8(buf)
+	self.contentType = util.ReadUint8(buf)
+	self.tlsVersion = util.ReadBigEndian16(buf)
+	self.length = util.ReadBigEndian16(buf)
+	self.handshakeType = util.ReadUint8(buf)
 	// if its a Client Hello and we're not coming from a Server Hello
 	if self.handshakeType == 1 {
 		log.Logger().Debug("Found client hello")
@@ -199,12 +183,12 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 		// a session ID indicates the initial handshake is completed, thus won't contain our certs
 		// Most likely a cipher change
 		// But, if we are in SSL, we have the certs with the hello, so the server name will be there
-		if server_hello.sessionId == "" {
-			cert_exchange := &TLSPacket{}
-			cert_exchange.Parse(buf)
-		} else if !self.isTLS() {
+		if !self.isTLS() {
 			log.Logger().Debug("Dealing with non-TLS exchange. Getting server name from server hello")
 			self.serverName = server_hello.serverName
+		} else {
+			cert_exchange := &TLSPacket{}
+			cert_exchange.Parse(buf)
 		}
 
 	} else if self.handshakeType == 11 {

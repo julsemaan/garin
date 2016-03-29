@@ -99,6 +99,11 @@ func (s *statsStream) ReassemblyComplete() {
 	//s.net, s.transport, s.start, s.end, s.bytesLen, s.packets, s.outOfOrder,
 	//float64(s.bytesLen)/diffSecs, float64(s.packets)/diffSecs, s.skipped)
 
+	defer func() {
+		if r := recover(); r != nil {
+			log.Logger().Error("Error decoding packet. This may be normal.", r)
+		}
+	}()
 	p := https_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
 	p.Parse()
 }
