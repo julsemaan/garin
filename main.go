@@ -48,10 +48,10 @@ Quit after processing this many packets, flushing all currently buffered
 connections.  If negative, this is infinite`)
 
 // simpleStreamFactory implements tcpassembly.StreamFactory
-type statsStreamFactory struct{}
+type sniffStreamFactory struct{}
 
-// statsStream will handle the actual decoding of stats requests.
-type statsStream struct {
+// sniffStream will handle the actual decoding of sniff requests.
+type sniffStream struct {
 	net, transport                         gopacket.Flow
 	bytesLen, packets, outOfOrder, skipped int64
 	start, end                             time.Time
@@ -61,9 +61,9 @@ type statsStream struct {
 
 // New creates a new stream.  It's called whenever the assembler sees a stream
 // it isn't currently following.
-func (factory *statsStreamFactory) New(net, transport gopacket.Flow) tcpassembly.Stream {
+func (factory *sniffStreamFactory) New(net, transport gopacket.Flow) tcpassembly.Stream {
 	//	log.Printf("new stream %v:%v started", net, transport)
-	s := &statsStream{
+	s := &sniffStream{
 		net:       net,
 		transport: transport,
 		start:     time.Now(),
@@ -75,7 +75,7 @@ func (factory *statsStreamFactory) New(net, transport gopacket.Flow) tcpassembly
 
 // Reassembled is called whenever new packet data is available for reading.
 // Reassembly objects contain stream data IN ORDER.
-func (s *statsStream) Reassembled(reassemblies []tcpassembly.Reassembly) {
+func (s *sniffStream) Reassembled(reassemblies []tcpassembly.Reassembly) {
 	for _, reassembly := range reassemblies {
 		if reassembly.Seen.Before(s.end) {
 			s.outOfOrder++
@@ -95,7 +95,7 @@ func (s *statsStream) Reassembled(reassemblies []tcpassembly.Reassembly) {
 
 // ReassemblyComplete is called when the TCP assembler believes a stream has
 // finished.
-func (s *statsStream) ReassemblyComplete() {
+func (s *sniffStream) ReassemblyComplete() {
 	//diffSecs := float64(s.end.Sub(s.start)) / float64(time.Second)
 	//	log.Printf("Reassembly of stream %v:%v complete - start:%v end:%v bytes:%v packets:%v ooo:%v bps:%v pps:%v skipped:%v",
 	//s.net, s.transport, s.start, s.end, s.bytesLen, s.packets, s.outOfOrder,
@@ -139,7 +139,7 @@ func main() {
 	}
 
 	// Set up assembly
-	streamFactory := &statsStreamFactory{}
+	streamFactory := &sniffStreamFactory{}
 	streamPool := tcpassembly.NewStreamPool(streamFactory)
 	assembler := tcpassembly.NewAssembler(streamPool)
 	assembler.MaxBufferedPagesPerConnection = *bufferedPerConnection
