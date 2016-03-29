@@ -17,3 +17,8 @@ func Logger() *logging.Logger {
 	}
 	return logger
 }
+
+func Die(args ...interface{}) {
+	Logger().Critical(args...)
+	panic(args)
+}

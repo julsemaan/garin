@@ -27,6 +27,7 @@ import (
 )
 
 var iface = flag.String("i", "eth0", "Interface to get packets from")
+var pcapFile = flag.String("o", "", "PCAP file to read from (ignores -i)")
 var snaplen = flag.Int("s", 65536, "SnapLen for pcap packet capture")
 var filter = flag.String("f", "tcp", "BPF filter for pcap")
 var logAllPackets = flag.Bool("v", false, "Log whenever we see a packet")
@@ -102,7 +103,7 @@ func (s *statsStream) ReassemblyComplete() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Logger().Error("Error decoding packet. This may be normal.", r)
+			log.Logger().Debug("Error decoding packet. This may be normal.", r)
 		}
 	}()
 
@@ -115,21 +116,26 @@ func (s *statsStream) ReassemblyComplete() {
 
 func main() {
 	defer util.Run()()
+	var err error
 
 	flushDuration, err := time.ParseDuration(*flushAfter)
 	if err != nil {
-		log.Logger().Critical("invalid flush duration: ", *flushAfter)
+		log.Die("invalid flush duration: ", *flushAfter)
 	}
 
-	log.Logger().Info("starting capture on interface %q", *iface)
+	log.Logger().Infof("starting capture on interface %q", *iface)
 	// Set up pcap packet capture
-	//	handle, err := pcap.OpenLive(*iface, int32(*snaplen), true, flushDuration/2)
-	handle, err := pcap.OpenOffline("samples/bigFlows.pcap")
+	var handle *pcap.Handle
+	if *pcapFile != "" {
+		handle, err = pcap.OpenOffline("samples/bigFlows.pcap")
+	} else {
+		handle, err = pcap.OpenLive(*iface, int32(*snaplen), true, flushDuration/2)
+	}
 	if err != nil {
-		log.Logger().Critical("error opening pcap handle: ", err)
+		log.Die("error opening pcap handle: ", err)
 	}
 	if err := handle.SetBPFFilter(*filter); err != nil {
-		log.Logger().Critical("error setting BPF filter: ", err)
+		log.Die("error setting BPF filter: ", err)
 	}
 
 	// Set up assembly
