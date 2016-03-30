@@ -12,6 +12,7 @@ import (
 	"github.com/julsemaan/WebSniffer/https_sniffer"
 	"github.com/julsemaan/WebSniffer/log"
 	WebSnifferUtil "github.com/julsemaan/WebSniffer/util"
+	"regexp"
 	//"net/http"
 	_ "net/http/pprof"
 	"runtime/debug"
@@ -22,6 +23,8 @@ var unencryptedPorts = make(map[string]bool)
 var encryptedPorts = make(map[string]bool)
 var concurrency = flag.Int("concurrency", 1, "Amount of concurrent threads that will be run")
 var concurrencyChan = make(chan int, *concurrency)
+var unencryptedPortsArg = flag.String("unencrypted-ports", "80", "The ports on which to parse unencrypted HTTP traffic")
+var encryptedPortsArg = flag.String("encrypted-ports", "443", "The ports on which to parse encrypted HTTPS traffic")
 var iface = flag.String("i", "eth0", "Interface to get packets from")
 var pcapFile = flag.String("o", "", "PCAP file to read from (ignores -i)")
 var snaplen = flag.Int("s", 65536, "SnapLen for pcap packet capture")
@@ -131,8 +134,14 @@ func main() {
 	defer util.Run()()
 	var err error
 
-	unencryptedPorts["80"] = true
-	encryptedPorts["443"] = true
+	ports := regexp.MustCompile(",").Split(*unencryptedPortsArg, -1)
+	for _, port := range ports {
+		unencryptedPorts[port] = true
+	}
+	ports = regexp.MustCompile(",").Split(*encryptedPortsArg, -1)
+	for _, port := range ports {
+		encryptedPorts[port] = true
+	}
 
 	flushDuration, err := time.ParseDuration(*flushAfter)
 	if err != nil {
