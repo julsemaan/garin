@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/hex"
-	//"github.com/davecgh/go-spew/spew"
 	"github.com/google/gopacket"
+	"github.com/julsemaan/WebSniffer/destination"
 	"github.com/julsemaan/WebSniffer/log"
 	"github.com/julsemaan/WebSniffer/util"
 )
@@ -198,18 +198,17 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 		self.serverName = cert_exchange.serverName
 	}
 
-	if self.serverName != "" {
-		log.Logger().Info("Found the following server name : ", self.serverName)
-	}
 }
 
-func (self *Packet) Parse() {
+func (self *Packet) Parse() *destination.Destination {
 	if self.Ports.Src().String() == "443" || self.Ports.Dst().String() == "443" {
 		log.Logger().Debug(self.Hosts, self.Ports)
 		buf := bytes.NewBuffer(self.Payload)
 		tlsPacket := &TLSPacket{}
 		tlsPacket.Parse(buf)
-		//		spew.Dump(self)
-		//		os.Exit(0)
+		if tlsPacket.serverName != "" {
+			return destination.New(tlsPacket.serverName, self.Hosts.Src().String())
+		}
 	}
+	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/tcpassembly"
+	"github.com/julsemaan/WebSniffer/destination"
 	"github.com/julsemaan/WebSniffer/http_sniffer"
 	"github.com/julsemaan/WebSniffer/https_sniffer"
 	"github.com/julsemaan/WebSniffer/log"
@@ -102,11 +103,14 @@ func (s *sniffStream) ReassemblyComplete() {
 			<-concurrencyChan
 		}()
 
+		var destination *destination.Destination
 		http_packet := http_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
-		http_packet.Parse()
+		destination = http_packet.Parse()
 
 		https_packet := https_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
-		https_packet.Parse()
+		destination = https_packet.Parse()
+
+		log.Logger().Info("Found the following server name : ", destination.ServerName)
 		<-concurrencyChan
 	}()
 }
