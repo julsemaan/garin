@@ -18,6 +18,8 @@ import (
 	"time"
 )
 
+var unencryptedPorts = make(map[string]bool)
+var encryptedPorts = make(map[string]bool)
 var concurrency = flag.Int("concurrency", 1, "Amount of concurrent threads that will be run")
 var concurrencyChan = make(chan int, *concurrency)
 var iface = flag.String("i", "eth0", "Interface to get packets from")
@@ -105,16 +107,20 @@ func (s *sniffStream) ReassemblyComplete() {
 		}()
 
 		var destination *destination.Destination
-		http_packet := &WebSnifferUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
-		destination = http_sniffer.Parse(http_packet)
-		if destination != nil {
-			log.Logger().Info("Found the following server name : ", destination.ServerName)
+		if unencryptedPorts[s.transport.Src().String()] || unencryptedPorts[s.transport.Dst().String()] {
+			http_packet := &WebSnifferUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
+			destination = http_sniffer.Parse(http_packet)
+			if destination != nil {
+				log.Logger().Info("Found the following server name : ", destination.ServerName)
+			}
 		}
 
-		https_packet := &WebSnifferUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
-		destination = https_sniffer.Parse(https_packet)
-		if destination != nil {
-			log.Logger().Info("Found the following server name : ", destination.ServerName)
+		if encryptedPorts[s.transport.Src().String()] || encryptedPorts[s.transport.Dst().String()] {
+			https_packet := &WebSnifferUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
+			destination = https_sniffer.Parse(https_packet)
+			if destination != nil {
+				log.Logger().Info("Found the following server name : ", destination.ServerName)
+			}
 		}
 
 		<-concurrencyChan
@@ -124,6 +130,9 @@ func (s *sniffStream) ReassemblyComplete() {
 func main() {
 	defer util.Run()()
 	var err error
+
+	unencryptedPorts["80"] = true
+	encryptedPorts["443"] = true
 
 	flushDuration, err := time.ParseDuration(*flushAfter)
 	if err != nil {
