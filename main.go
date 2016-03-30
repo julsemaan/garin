@@ -1,4 +1,4 @@
-package main
+package WebSniffer
 
 import (
 	"flag"
@@ -7,9 +7,6 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/tcpassembly"
-	"github.com/julsemaan/WebSniffer/destination"
-	"github.com/julsemaan/WebSniffer/http_sniffer"
-	"github.com/julsemaan/WebSniffer/https_sniffer"
 	"github.com/julsemaan/WebSniffer/log"
 	WebSnifferUtil "github.com/julsemaan/WebSniffer/util"
 	"regexp"
@@ -109,10 +106,10 @@ func (s *sniffStream) ReassemblyComplete() {
 			<-concurrencyChan
 		}()
 
-		var destination *destination.Destination
+		var destination *Destination
 		if unencryptedPorts[s.transport.Src().String()] || unencryptedPorts[s.transport.Dst().String()] {
 			http_packet := &WebSnifferUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
-			destination = http_sniffer.Parse(http_packet)
+			destination = ParseHTTP(http_packet)
 			if destination != nil {
 				log.Logger().Info("Found the following server name : ", destination.ServerName)
 			}
@@ -120,7 +117,7 @@ func (s *sniffStream) ReassemblyComplete() {
 
 		if encryptedPorts[s.transport.Src().String()] || encryptedPorts[s.transport.Dst().String()] {
 			https_packet := &WebSnifferUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
-			destination = https_sniffer.Parse(https_packet)
+			destination = ParseHTTPS(https_packet)
 			if destination != nil {
 				log.Logger().Info("Found the following server name : ", destination.ServerName)
 			}

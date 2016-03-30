@@ -1,4 +1,4 @@
-package destination
+package WebSniffer
 
 import (
 	"time"
@@ -10,7 +10,7 @@ type Destination struct {
 	Timestamp  time.Time
 }
 
-func New(serverName string, sourceIp string) *Destination {
+func NewDestination(serverName string, sourceIp string) *Destination {
 	destination := &Destination{ServerName: serverName, SourceIp: sourceIp, Timestamp: time.Now()}
 	return destination
 }

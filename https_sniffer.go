@@ -1,10 +1,9 @@
-package https_sniffer
+package WebSniffer
 
 import (
 	"bytes"
 	"crypto/x509"
 	"encoding/hex"
-	"github.com/julsemaan/WebSniffer/destination"
 	"github.com/julsemaan/WebSniffer/log"
 	"github.com/julsemaan/WebSniffer/util"
 )
@@ -193,14 +192,14 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 
 }
 
-func Parse(packet *util.Packet) *destination.Destination {
+func ParseHTTPS(packet *util.Packet) *Destination {
 	if packet.Ports.Src().String() == "443" || packet.Ports.Dst().String() == "443" {
 		log.Logger().Debug(packet.Hosts, packet.Ports)
 		buf := bytes.NewBuffer(packet.Payload)
 		tlsPacket := &TLSPacket{}
 		tlsPacket.Parse(buf)
 		if tlsPacket.serverName != "" {
-			return destination.New(tlsPacket.serverName, packet.Hosts.Src().String())
+			return NewDestination(tlsPacket.serverName, packet.Hosts.Src().String())
 		}
 	}
 	return nil
