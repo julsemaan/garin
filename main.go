@@ -10,12 +10,14 @@ import (
 	"github.com/julsemaan/WebSniffer/http_sniffer"
 	"github.com/julsemaan/WebSniffer/https_sniffer"
 	"github.com/julsemaan/WebSniffer/log"
-	"net/http"
+	//"net/http"
 	_ "net/http/pprof"
 	"runtime/debug"
 	"time"
 )
 
+var concurrency = flag.Int("concurrency", 1, "Amount of concurrent threads that will be run")
+var concurrencyChan = make(chan int, *concurrency)
 var iface = flag.String("i", "eth0", "Interface to get packets from")
 var pcapFile = flag.String("o", "", "PCAP file to read from (ignores -i)")
 var snaplen = flag.Int("s", 65536, "SnapLen for pcap packet capture")
@@ -91,17 +93,22 @@ func (s *sniffStream) ReassemblyComplete() {
 	//s.net, s.transport, s.start, s.end, s.bytesLen, s.packets, s.outOfOrder,
 	//float64(s.bytesLen)/diffSecs, float64(s.packets)/diffSecs, s.skipped)
 
-	defer func() {
-		if r := recover(); r != nil {
-			log.Logger().Debug("Error decoding packet. This may be normal.", r)
-		}
+	concurrencyChan <- 1
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Logger().Debug("Error decoding packet. This may be normal.", r)
+			}
+			<-concurrencyChan
+		}()
+
+		http_packet := http_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
+		http_packet.Parse()
+
+		https_packet := https_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
+		https_packet.Parse()
+		<-concurrencyChan
 	}()
-
-	http_packet := http_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
-	http_packet.Parse()
-
-	https_packet := https_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
-	https_packet.Parse()
 }
 
 func main() {
@@ -113,9 +120,9 @@ func main() {
 		log.Die("invalid flush duration: ", *flushAfter)
 	}
 
-	go func() {
-		log.Logger().Info(http.ListenAndServe("localhost:6060", nil))
-	}()
+	//go func() {
+	//	log.Logger().Info(http.ListenAndServe("localhost:6060", nil))
+	//}()
 
 	go func() {
 		tick := time.Tick(flushDuration)
@@ -128,7 +135,7 @@ func main() {
 	// Set up pcap packet capture
 	var handle *pcap.Handle
 	if *pcapFile != "" {
-		handle, err = pcap.OpenOffline("samples/bigFlows.pcap")
+		handle, err = pcap.OpenOffline(*pcapFile)
 	} else {
 		handle, err = pcap.OpenLive(*iface, int32(*snaplen), true, flushDuration/2)
 	}
