@@ -11,6 +11,7 @@ import (
 	"github.com/julsemaan/WebSniffer/http_sniffer"
 	"github.com/julsemaan/WebSniffer/https_sniffer"
 	"github.com/julsemaan/WebSniffer/log"
+	WebSnifferUtil "github.com/julsemaan/WebSniffer/util"
 	//"net/http"
 	_ "net/http/pprof"
 	"runtime/debug"
@@ -104,13 +105,18 @@ func (s *sniffStream) ReassemblyComplete() {
 		}()
 
 		var destination *destination.Destination
-		http_packet := http_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
-		destination = http_packet.Parse()
+		http_packet := &WebSnifferUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
+		destination = http_sniffer.Parse(http_packet)
+		if destination != nil {
+			log.Logger().Info("Found the following server name : ", destination.ServerName)
+		}
 
-		https_packet := https_sniffer.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
-		destination = https_packet.Parse()
+		https_packet := &WebSnifferUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
+		destination = https_sniffer.Parse(https_packet)
+		if destination != nil {
+			log.Logger().Info("Found the following server name : ", destination.ServerName)
+		}
 
-		log.Logger().Info("Found the following server name : ", destination.ServerName)
 		<-concurrencyChan
 	}()
 }

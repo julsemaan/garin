@@ -3,7 +3,14 @@ package util
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/google/gopacket"
 )
+
+type Packet struct {
+	Hosts   gopacket.Flow
+	Ports   gopacket.Flow
+	Payload []byte
+}
 
 func ReadBigEndian16(buf *bytes.Buffer) uint16 {
 	var x uint16

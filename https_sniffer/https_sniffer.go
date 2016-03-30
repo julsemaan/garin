@@ -4,17 +4,10 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/hex"
-	"github.com/google/gopacket"
 	"github.com/julsemaan/WebSniffer/destination"
 	"github.com/julsemaan/WebSniffer/log"
 	"github.com/julsemaan/WebSniffer/util"
 )
-
-type Packet struct {
-	Hosts   gopacket.Flow
-	Ports   gopacket.Flow
-	Payload []byte
-}
 
 type TLSPacket struct {
 	tlsVersion    uint16
@@ -200,14 +193,14 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 
 }
 
-func (self *Packet) Parse() *destination.Destination {
-	if self.Ports.Src().String() == "443" || self.Ports.Dst().String() == "443" {
-		log.Logger().Debug(self.Hosts, self.Ports)
-		buf := bytes.NewBuffer(self.Payload)
+func Parse(packet *util.Packet) *destination.Destination {
+	if packet.Ports.Src().String() == "443" || packet.Ports.Dst().String() == "443" {
+		log.Logger().Debug(packet.Hosts, packet.Ports)
+		buf := bytes.NewBuffer(packet.Payload)
 		tlsPacket := &TLSPacket{}
 		tlsPacket.Parse(buf)
 		if tlsPacket.serverName != "" {
-			return destination.New(tlsPacket.serverName, self.Hosts.Src().String())
+			return destination.New(tlsPacket.serverName, packet.Hosts.Src().String())
 		}
 	}
 	return nil
