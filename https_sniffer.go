@@ -193,14 +193,12 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 }
 
 func ParseHTTPS(packet *util.Packet) *Destination {
-	if packet.Ports.Src().String() == "443" || packet.Ports.Dst().String() == "443" {
-		log.Logger().Debug(packet.Hosts, packet.Ports)
-		buf := bytes.NewBuffer(packet.Payload)
-		tlsPacket := &TLSPacket{}
-		tlsPacket.Parse(buf)
-		if tlsPacket.serverName != "" {
-			return NewDestination(tlsPacket.serverName, packet.Hosts.Src().String())
-		}
+	log.Logger().Debug(packet.Hosts, packet.Ports)
+	buf := bytes.NewBuffer(packet.Payload)
+	tlsPacket := &TLSPacket{}
+	tlsPacket.Parse(buf)
+	if tlsPacket.serverName != "" {
+		return NewDestination(tlsPacket.serverName, packet.Hosts.Src().String())
 	}
 	return nil
 }
