@@ -10,6 +10,9 @@ import (
 	"github.com/julsemaan/WebSniffer/http_sniffer"
 	"github.com/julsemaan/WebSniffer/https_sniffer"
 	"github.com/julsemaan/WebSniffer/log"
+	"net/http"
+	_ "net/http/pprof"
+	"runtime/debug"
 	"time"
 )
 
@@ -110,6 +113,17 @@ func main() {
 		log.Die("invalid flush duration: ", *flushAfter)
 	}
 
+	go func() {
+		log.Logger().Info(http.ListenAndServe("localhost:6060", nil))
+	}()
+
+	go func() {
+		tick := time.Tick(flushDuration)
+		for _ = range tick {
+			debug.FreeOSMemory()
+		}
+	}()
+
 	log.Logger().Infof("starting capture on interface %q", *iface)
 	// Set up pcap packet capture
 	var handle *pcap.Handle
@@ -164,7 +178,7 @@ loop:
 		// never see packet data.
 		if time.Now().After(nextFlush) {
 			stats, _ := handle.Stats()
-			log.Logger().Info("flushing all streams that haven't seen packets in the last 2 minutes, pcap stats: %+v", stats)
+			log.Logger().Infof("flushing all streams that haven't seen packets in the last %q, pcap stats: %+v", *flushAfter, stats)
 			assembler.FlushOlderThan(time.Now().Add(flushDuration))
 			nextFlush = time.Now().Add(flushDuration / 2)
 		}
