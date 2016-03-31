@@ -1,12 +1,10 @@
 package main
 
 import (
-	"github.com/julsemaan/WebSniffer/log"
 	"sync"
 )
 
 type RecordingQueue struct {
-	db                     *WebSnifferDB
 	destinationsQueue      []*Destination
 	destinationsQueueMutex *sync.Mutex
 }
@@ -33,16 +31,15 @@ func (self *RecordingQueue) empty() bool {
 
 func NewRecordingQueue() *RecordingQueue {
 	recording_queue := &RecordingQueue{}
-	recording_queue.db = GetDB()
 	recording_queue.destinationsQueue = make([]*Destination, 0)
 	recording_queue.destinationsQueueMutex = &sync.Mutex{}
 	return recording_queue
 }
 
-func (self *RecordingQueue) work() bool {
+func (self *RecordingQueue) work(db *WebSnifferDB) bool {
 	destination := self.shift()
 	if destination != nil {
-		destination.Save(self.db)
+		destination.Save(db)
 		return true
 	}
 	return false

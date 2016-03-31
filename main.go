@@ -173,9 +173,10 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		defer recordingQueue.db.Handle.Close()
+		db := GetDB()
+		defer db.Handle.Close()
 		for running || !recordingQueue.empty() {
-			if !recordingQueue.work() {
+			if !recordingQueue.work(db) {
 				// When the queue hasn't provided something, we sleep to save some CPU time
 				time.Sleep(time.Millisecond * 10)
 			}
