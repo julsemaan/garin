@@ -40,7 +40,7 @@ func NewRecordingQueue() *RecordingQueue {
 }
 
 func (self *RecordingQueue) work() {
-	log.Logger().Info("Working it")
+	log.Logger().Debug("Working it")
 	destination := self.shift()
 	if destination != nil {
 		destination.Save(self.db)
