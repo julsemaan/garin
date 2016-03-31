@@ -25,7 +25,7 @@ Parsing + Persisting PPS (SQLite3)
 * Timing: 42.169
 * Pure HTTP - HTTPS parsing: 9751 PPS - 50 Mbits/s 
 * Network parsing: 18772 PPS - 67 Mbits/s
-* As seen above, persisting in the SQLite3 backend is far from being performant and becomes the central bottleneck of the application. This *should* not be used other than for testing.
+* As seen above, persisting in the SQLite3 backend is far from being performant and becomes the central bottleneck of the application. This _should_ not be used other than for testing.
 
 ## Licence
 
