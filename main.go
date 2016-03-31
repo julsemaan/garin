@@ -26,6 +26,7 @@ var parsingConcurrency = flag.Int("parsing-concurrency", 1, "Amount of concurren
 var parsingConcurrencyChan = make(chan int, *parsingConcurrency)
 
 var recordingThreads = flag.Int("recording-threads", 1, "Amount of concurrent threads that will work the recording queue (used to persist parsed data)")
+var dontRecordDestinations = flag.Bool("dont-record-destinations", false, "Don't record the destinations in the DB backend")
 
 var wg sync.WaitGroup
 
@@ -174,20 +175,24 @@ func main() {
 	//	log.Logger().Info(http.ListenAndServe("localhost:6060", nil))
 	//}()
 
-	for i := 1; i <= *recordingThreads; i++ {
-		log.Logger().Info("Spawning recording thread", i)
-		wg.Add(1)
-		go func() {
-			db := GetDB()
-			defer db.Handle.Close()
-			for running || !recordingQueue.empty() {
-				if !recordingQueue.work(db) {
-					// When the queue hasn't provided something, we sleep to save some CPU time
-					time.Sleep(time.Millisecond * 10)
+	if !*dontRecordDestinations {
+		for i := 1; i <= *recordingThreads; i++ {
+			log.Logger().Info("Spawning recording thread", i)
+			wg.Add(1)
+			go func() {
+				db := GetDB()
+				defer db.Handle.Close()
+				for running || !recordingQueue.empty() {
+					if !recordingQueue.work(db) {
+						// When the queue hasn't provided something, we sleep to save some CPU time
+						time.Sleep(time.Millisecond * 10)
+					}
 				}
-			}
-			wg.Done()
-		}()
+				wg.Done()
+			}()
+		}
+	} else {
+		recordingQueue.dummy = true
 	}
 
 	go func() {
