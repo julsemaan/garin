@@ -1,4 +1,4 @@
-package WebSniffer
+package main
 
 import (
 	"flag"
@@ -12,14 +12,21 @@ import (
 	"regexp"
 	//"net/http"
 	_ "net/http/pprof"
+	"os"
 	"runtime/debug"
+	"sync"
 	"time"
 )
 
 var unencryptedPorts = make(map[string]bool)
 var encryptedPorts = make(map[string]bool)
+
 var concurrency = flag.Int("concurrency", 1, "Amount of concurrent threads that will be run")
 var concurrencyChan = make(chan int, *concurrency)
+var wg sync.WaitGroup
+
+var recordingQueue = NewRecordingQueue()
+
 var unencryptedPortsArg = flag.String("unencrypted-ports", "80", "The ports on which to parse unencrypted HTTP traffic")
 var encryptedPortsArg = flag.String("encrypted-ports", "443", "The ports on which to parse encrypted HTTPS traffic")
 var iface = flag.String("i", "eth0", "Interface to get packets from")
@@ -42,6 +49,8 @@ acceptable here`)
 var packetCount = flag.Int("c", -1, `
 Quit after processing this many packets, flushing all currently buffered
 connections.  If negative, this is infinite`)
+
+var running = true
 
 // simpleStreamFactory implements tcpassembly.StreamFactory
 type sniffStreamFactory struct{}
@@ -97,13 +106,21 @@ func (s *sniffStream) ReassemblyComplete() {
 	//s.net, s.transport, s.start, s.end, s.bytesLen, s.packets, s.outOfOrder,
 	//float64(s.bytesLen)/diffSecs, float64(s.packets)/diffSecs, s.skipped)
 
-	concurrencyChan <- 1
 	go func() {
+		wg.Add(1)
+		concurrencyChan <- 1
+
 		defer func() {
 			if r := recover(); r != nil {
-				log.Logger().Debug("Error decoding packet. This may be normal.", r)
+				err, ok := r.(error)
+				if ok && err.Error() == "runtime error: index out of range" {
+					log.Logger().Debug("Error decoding packet due to its unknown format. This is likely normal.", err.Error())
+				} else {
+					log.Logger().Error("Error decoding packet.", r)
+				}
 			}
 			<-concurrencyChan
+			wg.Done()
 		}()
 
 		var destination *Destination
@@ -111,7 +128,8 @@ func (s *sniffStream) ReassemblyComplete() {
 			http_packet := &WebSnifferUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
 			destination = ParseHTTP(http_packet)
 			if destination != nil {
-				log.Logger().Info("Found the following server name : ", destination.ServerName)
+				log.Logger().Info("Found the following server name (HTTP) : ", destination.ServerName)
+				recordingQueue.push(destination)
 			}
 		}
 
@@ -119,11 +137,13 @@ func (s *sniffStream) ReassemblyComplete() {
 			https_packet := &WebSnifferUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
 			destination = ParseHTTPS(https_packet)
 			if destination != nil {
-				log.Logger().Info("Found the following server name : ", destination.ServerName)
+				log.Logger().Info("Found the following server name (HTTPS) : ", destination.ServerName)
+				recordingQueue.push(destination)
 			}
 		}
 
 		<-concurrencyChan
+		wg.Done()
 	}()
 }
 
@@ -148,6 +168,15 @@ func main() {
 	//go func() {
 	//	log.Logger().Info(http.ListenAndServe("localhost:6060", nil))
 	//}()
+
+	wg.Add(1)
+	go func() {
+		defer recordingQueue.db.Handle.Close()
+		for running || !recordingQueue.empty() {
+			recordingQueue.work()
+		}
+		wg.Done()
+	}()
 
 	go func() {
 		tick := time.Tick(flushDuration)
@@ -201,6 +230,14 @@ func main() {
 
 	var byteCount int64
 	start := time.Now()
+
+	defer func() {
+		running = false
+		wg.Wait()
+		assembler.FlushAll()
+		log.Logger().Infof("processed %d bytes in %v", byteCount, time.Since(start))
+		os.Exit(0)
+	}()
 
 loop:
 	for ; *packetCount != 0; *packetCount-- {
@@ -268,6 +305,5 @@ loop:
 		}
 		log.Logger().Debug("could not find TCP layer")
 	}
-	assembler.FlushAll()
-	log.Logger().Info("processed %d bytes in %v", byteCount, time.Since(start))
+
 }

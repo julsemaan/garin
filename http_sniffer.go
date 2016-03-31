@@ -1,4 +1,4 @@
-package WebSniffer
+package main
 
 import (
 	"bufio"
