@@ -251,71 +251,75 @@ func main() {
 		}
 	}()
 
+	wg.Add(1)
 loop:
-	for ; *packetCount != 0; *packetCount-- {
-		// Check to see if we should flush the streams we have
-		// that haven't seen any new data in a while.  Note we set a
-		// timeout on our PCAP handle, so this should happen even if we
-		// never see packet data.
-		if time.Now().After(nextFlush) {
-			stats, _ := handle.Stats()
-			log.Logger().Infof("flushing all streams that haven't seen packets in the last %q, pcap stats: %+v", *flushAfter, stats)
-			assembler.FlushOlderThan(time.Now().Add(flushDuration))
-			nextFlush = time.Now().Add(flushDuration / 2)
-		}
+	for running {
+		for ; *packetCount != 0; *packetCount-- {
+			// Check to see if we should flush the streams we have
+			// that haven't seen any new data in a while.  Note we set a
+			// timeout on our PCAP handle, so this should happen even if we
+			// never see packet data.
+			if time.Now().After(nextFlush) {
+				stats, _ := handle.Stats()
+				log.Logger().Infof("flushing all streams that haven't seen packets in the last %q, pcap stats: %+v", *flushAfter, stats)
+				assembler.FlushOlderThan(time.Now().Add(flushDuration))
+				nextFlush = time.Now().Add(flushDuration / 2)
+			}
 
-		// To speed things up, we're also using the ZeroCopy method for
-		// reading packet data.  This method is faster than the normal
-		// ReadPacketData, but the returned bytes in 'data' are
-		// invalidated by any subsequent ZeroCopyReadPacketData call.
-		// Note that tcpassembly is entirely compatible with this packet
-		// reading method.  This is another trade-off which might be
-		// appropriate for high-throughput sniffing:  it avoids a packet
-		// copy, but its cost is much more careful handling of the
-		// resulting byte slice.
-		data, ci, err := handle.ZeroCopyReadPacketData()
+			// To speed things up, we're also using the ZeroCopy method for
+			// reading packet data.  This method is faster than the normal
+			// ReadPacketData, but the returned bytes in 'data' are
+			// invalidated by any subsequent ZeroCopyReadPacketData call.
+			// Note that tcpassembly is entirely compatible with this packet
+			// reading method.  This is another trade-off which might be
+			// appropriate for high-throughput sniffing:  it avoids a packet
+			// copy, but its cost is much more careful handling of the
+			// resulting byte slice.
+			data, ci, err := handle.ZeroCopyReadPacketData()
 
-		if err != nil {
-			if err.Error() == "EOF" {
-				// Read all packets in the case of a pcap file
-				log.Logger().Info("Read all packets")
-				return
-			} else {
-				log.Logger().Errorf("error getting packet: %v", err)
+			if err != nil {
+				if err.Error() == "EOF" {
+					// Read all packets in the case of a pcap file
+					log.Logger().Info("Read all packets")
+					return
+				} else {
+					log.Logger().Errorf("error getting packet: %v", err)
+					continue
+				}
+			}
+			err = parser.DecodeLayers(data, &decoded)
+			if err != nil {
+				log.Logger().Errorf("error decoding packet: %v", err)
 				continue
 			}
-		}
-		err = parser.DecodeLayers(data, &decoded)
-		if err != nil {
-			log.Logger().Errorf("error decoding packet: %v", err)
-			continue
-		}
-		if *logAllPackets {
-			log.Logger().Debugf("decoded the following layers: %v", decoded)
-		}
-		byteCount += int64(len(data))
-		// Find either the IPv4 or IPv6 address to use as our network
-		// layer.
-		foundNetLayer := false
-		var netFlow gopacket.Flow
-		for _, typ := range decoded {
-			switch typ {
-			case layers.LayerTypeIPv4:
-				netFlow = ip4.NetworkFlow()
-				foundNetLayer = true
-			case layers.LayerTypeIPv6:
-				netFlow = ip6.NetworkFlow()
-				foundNetLayer = true
-			case layers.LayerTypeTCP:
-				if foundNetLayer {
-					assembler.AssembleWithTimestamp(netFlow, &tcp, ci.Timestamp)
-				} else {
-					log.Logger().Debug("could not find IPv4 or IPv6 layer, inoring")
-				}
-				continue loop
+			if *logAllPackets {
+				log.Logger().Debugf("decoded the following layers: %v", decoded)
 			}
+			byteCount += int64(len(data))
+			// Find either the IPv4 or IPv6 address to use as our network
+			// layer.
+			foundNetLayer := false
+			var netFlow gopacket.Flow
+			for _, typ := range decoded {
+				switch typ {
+				case layers.LayerTypeIPv4:
+					netFlow = ip4.NetworkFlow()
+					foundNetLayer = true
+				case layers.LayerTypeIPv6:
+					netFlow = ip6.NetworkFlow()
+					foundNetLayer = true
+				case layers.LayerTypeTCP:
+					if foundNetLayer {
+						assembler.AssembleWithTimestamp(netFlow, &tcp, ci.Timestamp)
+					} else {
+						log.Logger().Debug("could not find IPv4 or IPv6 layer, inoring")
+					}
+					continue loop
+				}
+			}
+			log.Logger().Debug("could not find TCP layer")
 		}
-		log.Logger().Debug("could not find TCP layer")
 	}
+	wg.Done()
 
 }
