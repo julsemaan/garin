@@ -9,6 +9,7 @@ import (
 	"github.com/google/gopacket/tcpassembly"
 	"github.com/julsemaan/WebSniffer/log"
 	WebSnifferUtil "github.com/julsemaan/WebSniffer/util"
+	"os/signal"
 	"regexp"
 	//"net/http"
 	_ "net/http/pprof"
@@ -231,12 +232,23 @@ func main() {
 	var byteCount int64
 	start := time.Now()
 
-	defer func() {
+	stop := func() {
 		running = false
 		wg.Wait()
 		assembler.FlushAll()
 		log.Logger().Infof("processed %d bytes in %v", byteCount, time.Since(start))
 		os.Exit(0)
+	}
+
+	defer stop()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Kill)
+	go func() {
+		for _ = range c {
+			stop()
+		}
 	}()
 
 loop:
