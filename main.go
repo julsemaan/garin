@@ -52,6 +52,7 @@ Quit after processing this many packets, flushing all currently buffered
 connections.  If negative, this is infinite`)
 
 var running = true
+var stopChan = make(chan int, 1)
 
 // simpleStreamFactory implements tcpassembly.StreamFactory
 type sniffStreamFactory struct{}
@@ -234,6 +235,7 @@ func main() {
 
 	stop := func() {
 		running = false
+		stopChan <- 1
 		wg.Wait()
 		assembler.FlushAll()
 		log.Logger().Infof("processed %d bytes in %v", byteCount, time.Since(start))
@@ -266,21 +268,41 @@ loop:
 				nextFlush = time.Now().Add(flushDuration / 2)
 			}
 
-			// To speed things up, we're also using the ZeroCopy method for
-			// reading packet data.  This method is faster than the normal
-			// ReadPacketData, but the returned bytes in 'data' are
-			// invalidated by any subsequent ZeroCopyReadPacketData call.
-			// Note that tcpassembly is entirely compatible with this packet
-			// reading method.  This is another trade-off which might be
-			// appropriate for high-throughput sniffing:  it avoids a packet
-			// copy, but its cost is much more careful handling of the
-			// resulting byte slice.
-			data, ci, err := handle.ZeroCopyReadPacketData()
+			var data []byte
+			var ci gopacket.CaptureInfo
+			var err error
+			packetIn := make(chan int, 1)
+			go func() {
+				// To speed things up, we're also using the ZeroCopy method for
+				// reading packet data.  This method is faster than the normal
+				// ReadPacketData, but the returned bytes in 'data' are
+				// invalidated by any subsequent ZeroCopyReadPacketData call.
+				// Note that tcpassembly is entirely compatible with this packet
+				// reading method.  This is another trade-off which might be
+				// appropriate for high-throughput sniffing:  it avoids a packet
+				// copy, but its cost is much more careful handling of the
+				// resulting byte slice.
+				data, ci, err = handle.ZeroCopyReadPacketData()
+				packetIn <- 1
+			}()
+
+			done := false
+			for !done {
+				select {
+				case <-packetIn:
+					done = true
+				case <-stopChan:
+					done = true
+					wg.Done()
+					return
+				}
+			}
 
 			if err != nil {
 				if err.Error() == "EOF" {
 					// Read all packets in the case of a pcap file
 					log.Logger().Info("Read all packets")
+					wg.Done()
 					return
 				} else {
 					log.Logger().Errorf("error getting packet: %v", err)
