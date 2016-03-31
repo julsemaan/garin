@@ -175,7 +175,10 @@ func main() {
 	go func() {
 		defer recordingQueue.db.Handle.Close()
 		for running || !recordingQueue.empty() {
-			recordingQueue.work()
+			if !recordingQueue.work() {
+				// When the queue hasn't provided something, we sleep to save some CPU time
+				time.Sleep(time.Millisecond * 10)
+			}
 		}
 		wg.Done()
 	}()

@@ -39,10 +39,11 @@ func NewRecordingQueue() *RecordingQueue {
 	return recording_queue
 }
 
-func (self *RecordingQueue) work() {
-	log.Logger().Debug("Working it")
+func (self *RecordingQueue) work() bool {
 	destination := self.shift()
 	if destination != nil {
 		destination.Save(self.db)
+		return true
 	}
+	return false
 }
