@@ -206,16 +206,11 @@ loop:
 				packetIn <- 1
 			}()
 
-			done := false
-			for !done {
-				select {
-				case <-packetIn:
-					done = true
-				case <-stopChan:
-					done = true
-					wg.Done()
-					return
-				}
+			select {
+			case <-packetIn:
+			case <-stopChan:
+				wg.Done()
+				return
 			}
 
 			if err != nil {
