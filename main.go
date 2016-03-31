@@ -22,8 +22,11 @@ import (
 var unencryptedPorts = make(map[string]bool)
 var encryptedPorts = make(map[string]bool)
 
-var concurrency = flag.Int("concurrency", 1, "Amount of concurrent threads that will be run")
-var concurrencyChan = make(chan int, *concurrency)
+var parsingConcurrency = flag.Int("parsing-concurrency", 1, "Amount of concurrent threads that will parse the incoming traffic")
+var parsingConcurrencyChan = make(chan int, *parsingConcurrency)
+
+var recordingThreads = flag.Int("recording-threads", 1, "Amount of concurrent threads that will work the recording queue (used to persist parsed data)")
+
 var wg sync.WaitGroup
 
 var recordingQueue = NewRecordingQueue()
@@ -110,7 +113,7 @@ func (s *sniffStream) ReassemblyComplete() {
 
 	go func() {
 		wg.Add(1)
-		concurrencyChan <- 1
+		parsingConcurrencyChan <- 1
 
 		defer func() {
 			if r := recover(); r != nil {
@@ -121,7 +124,7 @@ func (s *sniffStream) ReassemblyComplete() {
 					log.Logger().Error("Error decoding packet.", r)
 				}
 			}
-			<-concurrencyChan
+			<-parsingConcurrencyChan
 			wg.Done()
 		}()
 
@@ -144,7 +147,7 @@ func (s *sniffStream) ReassemblyComplete() {
 			}
 		}
 
-		<-concurrencyChan
+		<-parsingConcurrencyChan
 		wg.Done()
 	}()
 }
@@ -171,18 +174,21 @@ func main() {
 	//	log.Logger().Info(http.ListenAndServe("localhost:6060", nil))
 	//}()
 
-	wg.Add(1)
-	go func() {
-		db := GetDB()
-		defer db.Handle.Close()
-		for running || !recordingQueue.empty() {
-			if !recordingQueue.work(db) {
-				// When the queue hasn't provided something, we sleep to save some CPU time
-				time.Sleep(time.Millisecond * 10)
+	for i := 1; i <= *recordingThreads; i++ {
+		log.Logger().Info("Spawning recording thread", i)
+		wg.Add(1)
+		go func() {
+			db := GetDB()
+			defer db.Handle.Close()
+			for running || !recordingQueue.empty() {
+				if !recordingQueue.work(db) {
+					// When the queue hasn't provided something, we sleep to save some CPU time
+					time.Sleep(time.Millisecond * 10)
+				}
 			}
-		}
-		wg.Done()
-	}()
+			wg.Done()
+		}()
+	}
 
 	go func() {
 		tick := time.Tick(flushDuration)
