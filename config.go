@@ -20,6 +20,10 @@ type Config struct {
 		Total_max_buffer        int
 		Flush_after             string
 	}
+	Database struct {
+		Type string
+		Args string
+	}
 }
 
 func NewConfig(filename string) *Config {

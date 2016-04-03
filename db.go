@@ -1,15 +1,16 @@
 package main
 
 import (
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/julsemaan/WebSniffer/log"
 	_ "github.com/mattn/go-sqlite3"
+	"sync"
 )
 
-var dbExists = false
+var creationMutex = &sync.Mutex{}
 
-const defaultDbType = "sqlite3"
-const defaultDbArgs = "/home/julien/gopath/src/github.com/julsemaan/WebSniffer/db.sqlite3"
+var dbExists = false
 
 type WebSnifferDB struct {
 	dbType string
@@ -26,6 +27,10 @@ func (self *WebSnifferDB) open() {
 	self.Handle = db
 }
 
+func (self *WebSnifferDB) Close() {
+	self.Handle.Close()
+}
+
 func (self *WebSnifferDB) checkIfExists() bool {
 	if dbExists {
 		return true
@@ -40,16 +45,17 @@ func (self *WebSnifferDB) checkIfExists() bool {
 }
 
 func (self *WebSnifferDB) createIfNotExists() {
+	creationMutex.Lock()
 	if self.checkIfExists() {
 		return
 	}
 	schema := `
 		create table destinations (source_ip VARCHAR(15), server_name VARCHAR(100), timestamp DATE);
-		delete from destinations;
 	`
 	// exec the schema or fail; multi-statement Exec behavior varies between
 	// database drivers;  pq will exec them all, sqlite3 won't, ymmv
 	self.Handle.MustExec(schema)
+	creationMutex.Unlock()
 }
 
 func NewWebSnifferDB(dbType string, dbArgs string) *WebSnifferDB {
@@ -57,8 +63,4 @@ func NewWebSnifferDB(dbType string, dbArgs string) *WebSnifferDB {
 	db.open()
 	db.createIfNotExists()
 	return db
-}
-
-func GetDB() *WebSnifferDB {
-	return NewWebSnifferDB(defaultDbType, defaultDbArgs)
 }
