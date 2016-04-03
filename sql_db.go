@@ -19,6 +19,7 @@ func (self *SQLGarinDB) Open() {
 	}
 
 	self.Handle = db
+	self.createIfNotExists()
 }
 
 func (self *SQLGarinDB) Close() {
@@ -57,7 +58,7 @@ func (self *SQLGarinDB) _createIfNotExists() {
 }
 
 func (self *SQLGarinDB) RecordDestination(destination *Destination) {
-	_, err := self.Handle.NamedExec("INSERT INTO destinations (source_ip, server_name, timestamp) VALUES(:source_ip, :server_name, :timestamp)", destination)
+	_, err := self.Handle.NamedExec("INSERT INTO "+DESTINATIONS_TABLE_NAME+" (source_ip, server_name, timestamp) VALUES(:source_ip, :server_name, :timestamp)", destination)
 	if err != nil {
 		panic(err)
 	}

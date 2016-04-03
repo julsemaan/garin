@@ -8,11 +8,12 @@ var creationMutex = &sync.Mutex{}
 
 var dbExists = false
 
+const DESTINATIONS_TABLE_NAME = "destinations"
+
 type GarinDB interface {
+	Setup(string, string)
 	Open()
 	Close()
-	checkIfExists() bool
-	createIfNotExists()
 	RecordDestination(*Destination)
 }
 
@@ -21,28 +22,33 @@ type AbstractGarinDB struct {
 	dbArgs string
 }
 
-func (self *AbstractGarinDB) checkIfExists() bool {
-	if dbExists {
-		return true
-	} else {
-		return false
-	}
+func (self *AbstractGarinDB) Setup(dbType string, dbArgs string) {
+	self.dbType = dbType
+	self.dbArgs = dbArgs
 }
 
-func (self *AbstractGarinDB) createIfNotExists() {
+func (self *AbstractGarinDB) Open() {
+	panic("unimplemented")
+}
+
+func (self *AbstractGarinDB) Close() {
+	panic("unimplemented")
+}
+
+func (self *AbstractGarinDB) RecordDestination(destination *Destination) {
 	panic("unimplemented")
 }
 
 func NewGarinDB(dbType string, dbArgs string) GarinDB {
+	var db GarinDB
 	switch dbType {
 	case "mongodb":
-		return nil
+		db = &MongoGarinDB{}
 	default:
-		db := &SQLGarinDB{}
-		db.dbType = dbType
-		db.dbArgs = dbArgs
-		db.Open()
-		db.createIfNotExists()
-		return db
+		db = &SQLGarinDB{}
 	}
+
+	db.Setup(dbType, dbArgs)
+	db.Open()
+	return db
 }
