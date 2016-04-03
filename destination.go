@@ -16,12 +16,9 @@ func NewDestination(serverName string, sourceIp string) *Destination {
 	return destination
 }
 
-func (self *Destination) Save(db *WebSnifferDB) {
+func (self *Destination) Save(db WebSnifferDBInt) {
 	log.Logger().Info("Saving destination")
-	_, err := db.Handle.NamedExec("INSERT INTO destinations (source_ip, server_name, timestamp) VALUES(:source_ip, :server_name, :timestamp)", self)
-	if err != nil {
-		panic(err)
-	}
+	db.RecordDestination(self)
 	//db.Handle.MustExec(`INSERT INTO destinations (source_ip, server_name, timestamp) VALUES('allo', 'allo', 0)`)
 	log.Logger().Info("Destination saved")
 }
