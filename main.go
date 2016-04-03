@@ -19,7 +19,7 @@ import (
 )
 
 var cfgFile = flag.String("c", "garin.conf", "Configuration to use for execution")
-var cfg = NewConfig(*cfgFile)
+var cfg = BuildConfig(*cfgFile)
 
 var unencryptedPorts = make(map[string]bool)
 var encryptedPorts = make(map[string]bool)
