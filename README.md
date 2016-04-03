@@ -1,4 +1,4 @@
-# WebSniffer
+# Garin
 
 Out of band HTTP and HTTPS destination decoding
 
