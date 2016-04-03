@@ -8,7 +8,7 @@ var creationMutex = &sync.Mutex{}
 
 var dbExists = false
 
-type WebSnifferDBInt interface {
+type GarinDB interface {
 	Open()
 	Close()
 	checkIfExists() bool
@@ -16,12 +16,12 @@ type WebSnifferDBInt interface {
 	RecordDestination(*Destination)
 }
 
-type WebSnifferDB struct {
+type AbstractGarinDB struct {
 	dbType string
 	dbArgs string
 }
 
-func (self *WebSnifferDB) checkIfExists() bool {
+func (self *AbstractGarinDB) checkIfExists() bool {
 	if dbExists {
 		return true
 	} else {
@@ -29,13 +29,13 @@ func (self *WebSnifferDB) checkIfExists() bool {
 	}
 }
 
-func (self *WebSnifferDB) createIfNotExists() {
+func (self *AbstractGarinDB) createIfNotExists() {
 	panic("unimplemented")
 }
 
-func NewWebSnifferDB(dbType string, dbArgs string) WebSnifferDBInt {
+func NewGarinDB(dbType string, dbArgs string) GarinDB {
 	if dbType != "mongodb" {
-		db := &SQLWebSnifferDB{}
+		db := &SQLGarinDB{}
 		db.dbType = dbType
 		db.dbArgs = dbArgs
 		db.Open()

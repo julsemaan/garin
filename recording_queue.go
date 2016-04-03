@@ -44,7 +44,7 @@ func NewRecordingQueue() *RecordingQueue {
 	return recording_queue
 }
 
-func (self *RecordingQueue) work(db WebSnifferDBInt) bool {
+func (self *RecordingQueue) work(db GarinDB) bool {
 	destination := self.shift()
 	if destination != nil {
 		destination.Save(db)

@@ -16,7 +16,7 @@ func NewDestination(serverName string, sourceIp string) *Destination {
 	return destination
 }
 
-func (self *Destination) Save(db WebSnifferDBInt) {
+func (self *Destination) Save(db GarinDB) {
 	log.Logger().Info("Saving destination")
 	db.RecordDestination(self)
 	//db.Handle.MustExec(`INSERT INTO destinations (source_ip, server_name, timestamp) VALUES('allo', 'allo', 0)`)

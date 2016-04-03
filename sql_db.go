@@ -7,12 +7,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type SQLWebSnifferDB struct {
-	WebSnifferDB
+type SQLGarinDB struct {
+	AbstractGarinDB
 	Handle *sqlx.DB
 }
 
-func (self *SQLWebSnifferDB) Open() {
+func (self *SQLGarinDB) Open() {
 	db, err := sqlx.Open(self.dbType, self.dbArgs)
 	if err != nil {
 		log.Die(err)
@@ -21,11 +21,11 @@ func (self *SQLWebSnifferDB) Open() {
 	self.Handle = db
 }
 
-func (self *SQLWebSnifferDB) Close() {
+func (self *SQLGarinDB) Close() {
 	self.Handle.Close()
 }
 
-func (self *SQLWebSnifferDB) checkIfExists() bool {
+func (self *SQLGarinDB) checkIfExists() bool {
 	if dbExists {
 		return true
 	}
@@ -38,13 +38,13 @@ func (self *SQLWebSnifferDB) checkIfExists() bool {
 	}
 }
 
-func (self *SQLWebSnifferDB) createIfNotExists() {
+func (self *SQLGarinDB) createIfNotExists() {
 	creationMutex.Lock()
 	self._createIfNotExists()
 	creationMutex.Unlock()
 }
 
-func (self *SQLWebSnifferDB) _createIfNotExists() {
+func (self *SQLGarinDB) _createIfNotExists() {
 	if self.checkIfExists() {
 		return
 	}
@@ -56,7 +56,7 @@ func (self *SQLWebSnifferDB) _createIfNotExists() {
 	self.Handle.MustExec(schema)
 }
 
-func (self *SQLWebSnifferDB) RecordDestination(destination *Destination) {
+func (self *SQLGarinDB) RecordDestination(destination *Destination) {
 	_, err := self.Handle.NamedExec("INSERT INTO destinations (source_ip, server_name, timestamp) VALUES(:source_ip, :server_name, :timestamp)", destination)
 	if err != nil {
 		panic(err)

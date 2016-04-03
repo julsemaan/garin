@@ -84,7 +84,7 @@ func main() {
 			log.Logger().Info("Spawning recording thread", i)
 			wg.Add(1)
 			go func() {
-				db := NewWebSnifferDB(cfg.Database.Type, cfg.Database.Args)
+				db := NewGarinDB(cfg.Database.Type, cfg.Database.Args)
 				defer db.Close()
 				for running || !recordingQueue.empty() {
 					if !recordingQueue.work(db) {
