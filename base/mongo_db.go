@@ -1,4 +1,4 @@
-package main
+package base
 
 import (
 	"gopkg.in/mgo.v2"

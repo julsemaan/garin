@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/hex"
+	"github.com/julsemaan/garin/base"
 	"github.com/julsemaan/garin/util"
 )
 
@@ -54,7 +55,7 @@ func (self *TLSServerHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 		buf.Next(2)
 		compressionMethod := util.ReadUint8(buf)
 		if compressionMethod != 0 {
-			Logger().Error("Can't decrypt certs because they are compressed and we don't know how to uncompress them...")
+			base.Logger().Error("Can't decrypt certs because they are compressed and we don't know how to uncompress them...")
 		} else {
 			handshakeType := util.ReadUint8(buf)
 			if handshakeType == 11 {
@@ -63,7 +64,7 @@ func (self *TLSServerHello) Parse(tlsPacket *TLSPacket, buf *bytes.Buffer) {
 				certificates := self.readCertificates(buf)
 				self.serverName = certificates[0].Subject.CommonName
 			} else {
-				Logger().Error("Unknown SSL handshake type")
+				base.Logger().Error("Unknown SSL handshake type")
 			}
 		}
 	}
@@ -81,7 +82,7 @@ func (self *TLSExchange) readCertificates(buf *bytes.Buffer) []*x509.Certificate
 		certificate_bytes := buf.Next(int(certificateLength))
 		tmpCertificates, err := x509.ParseCertificates(certificate_bytes)
 		if err != nil {
-			Logger().Error("Can't decode certificate")
+			base.Logger().Error("Can't decode certificate")
 		}
 		certificate := tmpCertificates[0]
 
@@ -157,13 +158,13 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 	self.handshakeType = util.ReadUint8(buf)
 	// if its a Client Hello and we're not coming from a Server Hello
 	if self.handshakeType == 1 {
-		Logger().Debug("Found client hello")
+		base.Logger().Debug("Found client hello")
 		client_hello := TLSClientHello{}
 		client_hello.Parse(self, buf)
 		//spew.Dump(hello)
 		self.serverName = client_hello.serverName
 	} else if self.handshakeType == 2 {
-		Logger().Debug("Found server hello")
+		base.Logger().Debug("Found server hello")
 		// We read the whole server hello but not doing anything with it yet
 		server_hello_bytes := buf.Next(int(self.length) - 1)
 		server_hello_buf := bytes.NewBuffer(server_hello_bytes)
@@ -175,7 +176,7 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 		// Most likely a cipher change
 		// But, if we are in SSL, we have the certs with the hello, so the server name will be there
 		if !self.isTLS() {
-			Logger().Debug("Dealing with non-TLS exchange. Getting server name from server hello")
+			base.Logger().Debug("Dealing with non-TLS exchange. Getting server name from server hello")
 			self.serverName = server_hello.serverName
 		} else {
 			cert_exchange := &TLSPacket{}
@@ -183,7 +184,7 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 		}
 
 	} else if self.handshakeType == 11 {
-		Logger().Debug("Found cert exchange")
+		base.Logger().Debug("Found cert exchange")
 		cert_exchange := &TLSServerCertExchange{}
 		cert_exchange.Parse(self, buf)
 		self.serverName = cert_exchange.serverName
@@ -191,13 +192,13 @@ func (self *TLSPacket) Parse(buf *bytes.Buffer) {
 
 }
 
-func ParseHTTPS(packet *util.Packet) *Destination {
-	Logger().Debug(packet.Hosts, packet.Ports)
+func ParseHTTPS(packet *util.Packet) *base.Destination {
+	base.Logger().Debug(packet.Hosts, packet.Ports)
 	buf := bytes.NewBuffer(packet.Payload)
 	tlsPacket := &TLSPacket{}
 	tlsPacket.Parse(buf)
 	if tlsPacket.serverName != "" {
-		return NewDestination(tlsPacket.serverName, packet.Hosts.Src().String())
+		return base.NewDestination(tlsPacket.serverName, packet.Hosts.Src().String())
 	}
 	return nil
 }

@@ -1,16 +1,17 @@
 package main
 
 import (
+	"github.com/julsemaan/garin/base"
 	"sync"
 )
 
 type RecordingQueue struct {
 	dummy      bool
-	queue      []*Destination
+	queue      []*base.Destination
 	queueMutex *sync.Mutex
 }
 
-func (self *RecordingQueue) push(destination *Destination) {
+func (self *RecordingQueue) push(destination *base.Destination) {
 	if self.dummy {
 		return
 	}
@@ -19,12 +20,12 @@ func (self *RecordingQueue) push(destination *Destination) {
 	self.queueMutex.Unlock()
 }
 
-func (self *RecordingQueue) shift() *Destination {
+func (self *RecordingQueue) shift() *base.Destination {
 	if self.dummy {
 		return nil
 	}
 	self.queueMutex.Lock()
-	var destination *Destination
+	var destination *base.Destination
 	if len(self.queue) > 0 {
 		destination, self.queue = self.queue[0], self.queue[1:]
 	}
@@ -38,13 +39,13 @@ func (self *RecordingQueue) empty() bool {
 
 func NewRecordingQueue() *RecordingQueue {
 	recording_queue := &RecordingQueue{}
-	recording_queue.queue = make([]*Destination, 0)
+	recording_queue.queue = make([]*base.Destination, 0)
 	recording_queue.queueMutex = &sync.Mutex{}
 	recording_queue.dummy = false
 	return recording_queue
 }
 
-func (self *RecordingQueue) work(db GarinDB) bool {
+func (self *RecordingQueue) work(db base.GarinDB) bool {
 	destination := self.shift()
 	if destination != nil {
 		destination.Save(db)

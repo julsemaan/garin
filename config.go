@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/davecgh/go-spew/spew"
+	"github.com/julsemaan/garin/base"
 	"gopkg.in/gcfg.v1"
 	"reflect"
 )
@@ -33,7 +34,7 @@ func NewConfig(filename string) *Config {
 	cfg := &Config{}
 	err := gcfg.ReadFileInto(cfg, filename)
 	if err != nil {
-		Die("Failed to parse gcfg", err)
+		base.Die("Failed to parse gcfg", err)
 	}
 	return cfg
 }
@@ -54,10 +55,10 @@ func BuildConfig(filename string) *Config {
 			if reflect.Value(field).Interface() != reflect.Zero(field.Type()).Interface() {
 				default_field.Set(reflect.Value(field))
 			} else {
-				Logger().Infof("Not overriding default value for field %s - %s since the one in the configuration is the zero value", reflect_default_cfg.Type().Field(i).Name, default_cfg_section.Type().Field(j).Name)
+				base.Logger().Infof("Not overriding default value for field %s - %s since the one in the configuration is the zero value", reflect_default_cfg.Type().Field(i).Name, default_cfg_section.Type().Field(j).Name)
 			}
 		}
 	}
-	Logger().Info("Starting using configuration : ", spew.Sdump(default_cfg))
+	base.Logger().Info("Starting using configuration : ", spew.Sdump(default_cfg))
 	return default_cfg
 }

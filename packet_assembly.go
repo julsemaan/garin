@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/tcpassembly"
+	"github.com/julsemaan/garin/base"
 	GarinUtil "github.com/julsemaan/garin/util"
 	"time"
 )
@@ -69,21 +70,21 @@ func (s *sniffStream) ReassemblyComplete() {
 			if r := recover(); r != nil {
 				err, ok := r.(error)
 				if ok && err.Error() == "runtime error: index out of range" {
-					Logger().Debug("Error decoding packet due to its unknown format. This is likely normal.", err.Error())
+					base.Logger().Debug("Error decoding packet due to its unknown format. This is likely normal.", err.Error())
 				} else {
-					Logger().Error("Error decoding packet.", r)
+					base.Logger().Error("Error decoding packet.", r)
 				}
 			}
 			<-parsingConcurrencyChan
 			wg.Done()
 		}()
 
-		var destination *Destination
+		var destination *base.Destination
 		if unencryptedPorts[s.transport.Src().String()] || unencryptedPorts[s.transport.Dst().String()] {
 			http_packet := &GarinUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
 			destination = ParseHTTP(http_packet)
 			if destination != nil {
-				Logger().Info("Found the following server name (HTTP) : ", destination.ServerName)
+				base.Logger().Info("Found the following server name (HTTP) : ", destination.ServerName)
 				recordingQueue.push(destination)
 			}
 		}
@@ -92,7 +93,7 @@ func (s *sniffStream) ReassemblyComplete() {
 			https_packet := &GarinUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
 			destination = ParseHTTPS(https_packet)
 			if destination != nil {
-				Logger().Info("Found the following server name (HTTPS) : ", destination.ServerName)
+				base.Logger().Info("Found the following server name (HTTPS) : ", destination.ServerName)
 				recordingQueue.push(destination)
 			}
 		}

@@ -7,6 +7,9 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/tcpassembly"
+	"github.com/julsemaan/garin/base"
+	"github.com/revel/cmd/harness"
+	"github.com/revel/revel"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -75,19 +78,19 @@ func main() {
 
 	flushDuration, err := time.ParseDuration(*flushAfter)
 	if err != nil {
-		Die("invalid flush duration: ", *flushAfter)
+		base.Die("invalid flush duration: ", *flushAfter)
 	}
 
 	//go func() {
-	//	Logger().Info(http.ListenAndServe("localhost:6060", nil))
+	//	base.Logger().Info(http.ListenAndServe("localhost:6060", nil))
 	//}()
 
 	if !*dontRecordDestinations {
 		for i := 1; i <= *recordingThreads; i++ {
-			Logger().Info("Spawning recording thread", i)
+			base.Logger().Info("Spawning recording thread", i)
 			wg.Add(1)
 			go func() {
-				db := NewGarinDB(cfg.Database.Type, cfg.Database.Args)
+				db := base.NewGarinDB(cfg.Database.Type, cfg.Database.Args)
 				defer db.Close()
 				for running || !recordingQueue.empty() {
 					if !recordingQueue.work(db) {
@@ -102,6 +105,8 @@ func main() {
 		recordingQueue.dummy = true
 	}
 
+	go runWeb()
+
 	go func() {
 		tick := time.Tick(flushDuration)
 		for _ = range tick {
@@ -112,19 +117,19 @@ func main() {
 	// Set up pcap packet capture
 	var handle *pcap.Handle
 	if *pcapFile != "" {
-		Logger().Infof("starting capture from file %q", *pcapFile)
+		base.Logger().Infof("starting capture from file %q", *pcapFile)
 		handle, err = pcap.OpenOffline(*pcapFile)
 	} else {
-		Logger().Infof("starting capture on interface %q", *iface)
+		base.Logger().Infof("starting capture on interface %q", *iface)
 		handle, err = pcap.OpenLive(*iface, int32(cfg.Capture.Snaplen), true, flushDuration/2)
 	}
 	if err != nil {
-		Die("error opening pcap handle: ", err)
+		base.Die("error opening pcap handle: ", err)
 	}
 
-	Logger().Info("Using filter", filter)
+	base.Logger().Info("Using filter", filter)
 	if err := handle.SetBPFFilter(filter); err != nil {
-		Die("error setting BPF filter: ", err)
+		base.Die("error setting BPF filter: ", err)
 	}
 
 	// Set up assembly
@@ -134,7 +139,7 @@ func main() {
 	assembler.MaxBufferedPagesPerConnection = *bufferedPerConnection
 	assembler.MaxBufferedPagesTotal = *bufferedTotal
 
-	Logger().Info("reading in packets")
+	base.Logger().Info("reading in packets")
 
 	// We use a DecodingLayerParser here instead of a simpler PacketSource.
 	// This approach should be measurably faster, but is also more rigid.
@@ -163,7 +168,7 @@ func main() {
 		stopChan <- 1
 		wg.Wait()
 		assembler.FlushAll()
-		Logger().Infof("processed %d bytes in %v", byteCount, time.Since(start))
+		base.Logger().Infof("processed %d bytes in %v", byteCount, time.Since(start))
 		os.Exit(0)
 	}
 
@@ -187,7 +192,7 @@ loop:
 		// never see packet data.
 		if time.Now().After(nextFlush) {
 			stats, _ := handle.Stats()
-			Logger().Infof("flushing all streams that haven't seen packets in the last %q, pcap stats: %+v", *flushAfter, stats)
+			base.Logger().Infof("flushing all streams that haven't seen packets in the last %q, pcap stats: %+v", *flushAfter, stats)
 			assembler.FlushOlderThan(time.Now().Add(flushDuration))
 			nextFlush = time.Now().Add(flushDuration / 2)
 		}
@@ -222,21 +227,21 @@ loop:
 		if err != nil {
 			if err.Error() == "EOF" {
 				// Read all packets in the case of a pcap file
-				Logger().Info("Read all packets")
+				base.Logger().Info("Read all packets")
 				wg.Done()
 				return
 			} else {
-				Logger().Errorf("error getting packet: %v", err)
+				base.Logger().Errorf("error getting packet: %v", err)
 				continue
 			}
 		}
 		err = parser.DecodeLayers(data, &decoded)
 		if err != nil {
-			Logger().Errorf("error decoding packet: %v", err)
+			base.Logger().Errorf("error decoding packet: %v", err)
 			continue
 		}
 		if *logAllPackets {
-			Logger().Debugf("decoded the following layers: %v", decoded)
+			base.Logger().Debugf("decoded the following layers: %v", decoded)
 		}
 		byteCount += int64(len(data))
 		// Find either the IPv4 or IPv6 address to use as our network
@@ -255,13 +260,46 @@ loop:
 				if foundNetLayer {
 					assembler.AssembleWithTimestamp(netFlow, &tcp, ci.Timestamp)
 				} else {
-					Logger().Debug("could not find IPv4 or IPv6 layer, inoring")
+					base.Logger().Debug("could not find IPv4 or IPv6 layer, inoring")
 				}
 				continue loop
 			}
 		}
-		Logger().Debug("could not find TCP layer")
+		base.Logger().Debug("could not find TCP layer")
 	}
 	wg.Done()
 
+}
+
+func runStatsServer() {
+
+}
+
+func runWeb() {
+	// Determine the run mode.
+	mode := "dev"
+	port := 9090
+
+	// Find and parse app.conf
+	revel.Init(mode, "github.com/julsemaan/garin/web", "")
+	revel.LoadMimeConfig()
+
+	revel.INFO.Printf("Running %s (%s) in %s mode\n", revel.AppName, revel.ImportPath, mode)
+	revel.TRACE.Println("Base path:", revel.BasePath)
+
+	// If the app is run in "watched" mode, use the harness to run it.
+	if revel.Config.BoolDefault("watch", true) && revel.Config.BoolDefault("watch.code", true) {
+		revel.TRACE.Println("Running in watched mode.")
+		revel.HttpPort = port
+		harness.NewHarness().Run() // Never returns.
+	}
+
+	// Else, just build and run the app.
+	revel.TRACE.Println("Running in live build mode.")
+	app, err := harness.Build()
+	if err != nil {
+		base.Die("Failed to build app:", err)
+	}
+	app.Port = port
+	app.Cmd().Run()
 }
