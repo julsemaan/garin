@@ -113,7 +113,7 @@ func main() {
 	// Set up pcap packet capture
 	var handle *pcap.Handle
 	if *pcapFile != "" {
-		Logger().Infof("starting capture from file", *pcapFile)
+		Logger().Infof("starting capture from file %q", *pcapFile)
 		handle, err = pcap.OpenOffline(*pcapFile)
 	} else {
 		Logger().Infof("starting capture on interface %q", *iface)
