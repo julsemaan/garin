@@ -3,7 +3,6 @@ package main
 import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/julsemaan/WebSniffer/log"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -15,7 +14,7 @@ type SQLGarinDB struct {
 func (self *SQLGarinDB) Open() {
 	db, err := sqlx.Open(self.dbType, self.dbArgs)
 	if err != nil {
-		log.Die(err)
+		Die(err)
 	}
 
 	self.Handle = db

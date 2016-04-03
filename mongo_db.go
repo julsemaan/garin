@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/julsemaan/WebSniffer/log"
 	"gopkg.in/mgo.v2"
 )
 
@@ -14,7 +13,7 @@ func (self *MongoGarinDB) Open() {
 	session, err := mgo.Dial(self.dbArgs)
 
 	if err != nil {
-		log.Die(err)
+		Die(err)
 	}
 
 	self.Session = session

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/julsemaan/WebSniffer/log"
 	"time"
 )
 
@@ -17,8 +16,8 @@ func NewDestination(serverName string, sourceIp string) *Destination {
 }
 
 func (self *Destination) Save(db GarinDB) {
-	log.Logger().Info("Saving destination")
+	Logger().Info("Saving destination")
 	db.RecordDestination(self)
 	//db.Handle.MustExec(`INSERT INTO destinations (source_ip, server_name, timestamp) VALUES('allo', 'allo', 0)`)
-	log.Logger().Info("Destination saved")
+	Logger().Info("Destination saved")
 }

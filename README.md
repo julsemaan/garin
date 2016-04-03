@@ -15,13 +15,13 @@ Environment:
 * 4 concurrent parsing threads
 
 Parsing PPS (logged to file - not persisted to a database): 
-* Command : `WebSniffer -connection_max_buffer 5 -parsing-concurrency 4 -o samples/bigFlows.pcap -dont-record-destinations -f 'tcp port 80 or 443' > out.txt 2>&1`
+* Command : `garin -connection_max_buffer 5 -parsing-concurrency 4 -o samples/bigFlows.pcap -dont-record-destinations -f 'tcp port 80 or 443' > out.txt 2>&1`
 * Timing: 1.631s
 * Pure HTTP - HTTPS parsing: 252111 PPS - 1297 Mbits/s 
 * Network parsing: 485355 PPS - 1743 Mbits/s
 
 Parsing + Persisting PPS (SQLite3)
-* Command : `WebSniffer -connection_max_buffer 5 -parsing-concurrency 4 -o samples/bigFlows.pcap -f 'tcp port 80 or 443' > out.txt 2>&1`
+* Command : `garin -connection_max_buffer 5 -parsing-concurrency 4 -o samples/bigFlows.pcap -f 'tcp port 80 or 443' > out.txt 2>&1`
 * Timing: 42.169
 * Pure HTTP - HTTPS parsing: 9751 PPS - 50 Mbits/s 
 * Network parsing: 18772 PPS - 67 Mbits/s

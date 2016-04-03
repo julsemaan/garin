@@ -3,8 +3,7 @@ package main
 import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/tcpassembly"
-	"github.com/julsemaan/WebSniffer/log"
-	WebSnifferUtil "github.com/julsemaan/WebSniffer/util"
+	GarinUtil "github.com/julsemaan/garin/util"
 	"time"
 )
 
@@ -70,9 +69,9 @@ func (s *sniffStream) ReassemblyComplete() {
 			if r := recover(); r != nil {
 				err, ok := r.(error)
 				if ok && err.Error() == "runtime error: index out of range" {
-					log.Logger().Debug("Error decoding packet due to its unknown format. This is likely normal.", err.Error())
+					Logger().Debug("Error decoding packet due to its unknown format. This is likely normal.", err.Error())
 				} else {
-					log.Logger().Error("Error decoding packet.", r)
+					Logger().Error("Error decoding packet.", r)
 				}
 			}
 			<-parsingConcurrencyChan
@@ -81,19 +80,19 @@ func (s *sniffStream) ReassemblyComplete() {
 
 		var destination *Destination
 		if unencryptedPorts[s.transport.Src().String()] || unencryptedPorts[s.transport.Dst().String()] {
-			http_packet := &WebSnifferUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
+			http_packet := &GarinUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
 			destination = ParseHTTP(http_packet)
 			if destination != nil {
-				log.Logger().Info("Found the following server name (HTTP) : ", destination.ServerName)
+				Logger().Info("Found the following server name (HTTP) : ", destination.ServerName)
 				recordingQueue.push(destination)
 			}
 		}
 
 		if encryptedPorts[s.transport.Src().String()] || encryptedPorts[s.transport.Dst().String()] {
-			https_packet := &WebSnifferUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
+			https_packet := &GarinUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
 			destination = ParseHTTPS(https_packet)
 			if destination != nil {
-				log.Logger().Info("Found the following server name (HTTPS) : ", destination.ServerName)
+				Logger().Info("Found the following server name (HTTPS) : ", destination.ServerName)
 				recordingQueue.push(destination)
 			}
 		}
