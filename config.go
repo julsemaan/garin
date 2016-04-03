@@ -59,6 +59,6 @@ func BuildConfig(filename string) *Config {
 			}
 		}
 	}
-	spew.Dump(default_cfg)
+	log.Logger().Info("Starting using configuration : ", spew.Sdump(default_cfg))
 	return default_cfg
 }
