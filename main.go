@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-var cfgFile = flag.String("c", "garin.conf", "Configuration to use for execution")
+var cfgFile = flag.String("c", "/etc/garin.conf", "Configuration to use for execution")
 var cfg = BuildConfig(*cfgFile)
 
 var unencryptedPorts = make(map[string]bool)
