@@ -13,6 +13,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 )
@@ -38,7 +39,6 @@ var encryptedPortsArg = flag.String("encrypted-ports", cfg.Capture.Encrypted_por
 
 var iface = flag.String("i", cfg.Capture.Interface, "Interface to get packets from")
 var pcapFile = flag.String("o", "", "PCAP file to read from (ignores -i)")
-var filter = flag.String("f", "tcp", "BPF filter for pcap")
 var logAllPackets = flag.Bool("v", false, "Log whenever we see a packet")
 var bufferedPerConnection = flag.Int("connection_max_buffer", cfg.Capture.Buffered_per_connection, `
 Max packets to buffer for a single connection before skipping over a gap in data
@@ -60,14 +60,19 @@ func main() {
 	defer util.Run()()
 	var err error
 
+	var allPorts []string
 	ports := regexp.MustCompile(",").Split(*unencryptedPortsArg, -1)
+	allPorts = append(allPorts, ports...)
 	for _, port := range ports {
 		unencryptedPorts[port] = true
 	}
 	ports = regexp.MustCompile(",").Split(*encryptedPortsArg, -1)
+	allPorts = append(allPorts, ports...)
 	for _, port := range ports {
 		encryptedPorts[port] = true
 	}
+
+	filter := "tcp port " + strings.Join(allPorts, " or ")
 
 	flushDuration, err := time.ParseDuration(*flushAfter)
 	if err != nil {
@@ -116,7 +121,9 @@ func main() {
 	if err != nil {
 		Die("error opening pcap handle: ", err)
 	}
-	if err := handle.SetBPFFilter(*filter); err != nil {
+
+	Logger().Info("Using filter", filter)
+	if err := handle.SetBPFFilter(filter); err != nil {
 		Die("error setting BPF filter: ", err)
 	}
 
