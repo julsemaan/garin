@@ -34,14 +34,15 @@ func (self *AbstractGarinDB) createIfNotExists() {
 }
 
 func NewGarinDB(dbType string, dbArgs string) GarinDB {
-	if dbType != "mongodb" {
+	switch dbType {
+	case "mongodb":
+		return nil
+	default:
 		db := &SQLGarinDB{}
 		db.dbType = dbType
 		db.dbArgs = dbArgs
 		db.Open()
 		db.createIfNotExists()
 		return db
-	} else {
-		return nil
 	}
 }
