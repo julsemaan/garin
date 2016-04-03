@@ -212,7 +212,7 @@ loop:
 		}()
 
 		// We wait for either a stop sign or for a packet - whichever comes first
-		// If we detect we need to stop, we signal it to the group
+		// If we detect we need to stop, we signal it to the group and we stop
 		select {
 		case <-packetIn:
 		case <-stopChan:
