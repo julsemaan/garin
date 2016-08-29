@@ -105,7 +105,7 @@ func main() {
 		recordingQueue.dummy = true
 	}
 
-	go runWeb()
+	//go runWeb()
 
 	go func() {
 		tick := time.Tick(flushDuration)
