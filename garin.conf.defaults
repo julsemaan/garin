@@ -28,5 +28,6 @@ snaplen=65536
 ; 0 or less is infinite
 buffered-per-connection=0
 total-max-buffer=0
+; Determines the maximum of time after which the flows will be considered as complete
 ; must follow time.Duration standard
 flush-after=2m
