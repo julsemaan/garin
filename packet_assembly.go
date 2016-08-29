@@ -97,8 +97,5 @@ func (s *sniffStream) ReassemblyComplete() {
 				recordingQueue.push(destination)
 			}
 		}
-
-		<-parsingConcurrencyChan
-		wg.Done()
 	}()
 }
