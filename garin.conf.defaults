@@ -6,7 +6,7 @@ dont-record-destinations=false
 [database]
 ; type of the database
 ; Should be a database/sql driver or mongodb
-type=mongodb
+type=sqlite3
 ; args are the connection string 
 ; -- SQL database --
 ; database/sql connection string
