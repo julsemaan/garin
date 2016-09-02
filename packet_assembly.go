@@ -84,7 +84,7 @@ func (s *sniffStream) ReassemblyComplete() {
 			http_packet := &GarinUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
 			destination = ParseHTTP(http_packet)
 			if destination != nil {
-				base.Logger().Info("Found the following server name (HTTP) : ", destination.ServerName)
+				destination.Protocol = "HTTP"
 				recordingQueue.push(destination)
 			}
 		}
@@ -93,9 +93,11 @@ func (s *sniffStream) ReassemblyComplete() {
 			https_packet := &GarinUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
 			destination = ParseHTTPS(https_packet)
 			if destination != nil {
-				base.Logger().Info("Found the following server name (HTTPS) : ", destination.ServerName)
+				destination.Protocol = "TLS/SSL"
 				recordingQueue.push(destination)
 			}
 		}
+
+		base.Logger().Infof("Destination detected protocol='%s' source_ip='%s' host='%s'", destination.Protocol, destination.SourceIp, destination.ServerName)
 	}()
 }

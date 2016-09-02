@@ -7,6 +7,7 @@ import (
 type Destination struct {
 	SourceIp   string    `db:"source_ip"`
 	ServerName string    `db:"server_name"`
+	Protocol   string    `db:"protocol"`
 	Timestamp  time.Time `db:"timestamp"`
 }
 
