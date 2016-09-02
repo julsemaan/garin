@@ -98,6 +98,8 @@ func (s *sniffStream) ReassemblyComplete() {
 			}
 		}
 
-		base.Logger().Infof("Destination detected protocol='%s' source_ip='%s' host='%s'", destination.Protocol, destination.SourceIp, destination.ServerName)
+		if destination != nil {
+			base.Logger().Infof("Destination detected protocol='%s' source_ip='%s' host='%s'", destination.Protocol, destination.SourceIp, destination.ServerName)
+		}
 	}()
 }
