@@ -49,7 +49,7 @@ func (self *SQLGarinDB) _createIfNotExists() {
 		return
 	}
 	schema := `
-		create table destinations (source_ip VARCHAR(15), server_name VARCHAR(100), protocol VARCHAR(10),timestamp DATE);
+		create table destinations (source_ip VARCHAR(15), destination_ip VARCHAR(15), server_name VARCHAR(100), protocol VARCHAR(10),timestamp DATE);
 	`
 	// exec the schema or fail; multi-statement Exec behavior varies between
 	// database drivers;  pq will exec them all, sqlite3 won't, ymmv
@@ -57,7 +57,7 @@ func (self *SQLGarinDB) _createIfNotExists() {
 }
 
 func (self *SQLGarinDB) RecordDestination(destination *Destination) {
-	_, err := self.Handle.NamedExec("INSERT INTO "+DESTINATIONS_TABLE_NAME+" (source_ip, server_name, protocol, timestamp) VALUES(:source_ip, :server_name, :protocol, :timestamp)", destination)
+	_, err := self.Handle.NamedExec("INSERT INTO "+DESTINATIONS_TABLE_NAME+" (source_ip, destination_ip, server_name, protocol, timestamp) VALUES(:source_ip, :destination_ip, :server_name, :protocol, :timestamp)", destination)
 	if err != nil {
 		panic(err)
 	}

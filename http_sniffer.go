@@ -17,7 +17,7 @@ func ParseHTTP(packet *util.Packet) *base.Destination {
 	if err != nil {
 		Logger().Debug(err)
 	} else if request.Host != "" {
-		return base.NewDestination(request.Host, packet.Hosts.Src().String())
+		return base.NewDestination(request.Host, packet.Hosts.Src().String(), packet.Hosts.Dst().String())
 	}
 	return nil
 }

@@ -5,14 +5,15 @@ import (
 )
 
 type Destination struct {
-	SourceIp   string    `db:"source_ip"`
-	ServerName string    `db:"server_name"`
-	Protocol   string    `db:"protocol"`
-	Timestamp  time.Time `db:"timestamp"`
+	SourceIp      string    `db:"source_ip"`
+	DestinationIp string    `db:"destination_ip"`
+	ServerName    string    `db:"server_name"`
+	Protocol      string    `db:"protocol"`
+	Timestamp     time.Time `db:"timestamp"`
 }
 
-func NewDestination(serverName string, sourceIp string) *Destination {
-	destination := &Destination{ServerName: serverName, SourceIp: sourceIp, Timestamp: time.Now()}
+func NewDestination(serverName string, sourceIp string, destIp string) *Destination {
+	destination := &Destination{ServerName: serverName, SourceIp: sourceIp, DestinationIp: destIp, Timestamp: time.Now()}
 	return destination
 }
 

@@ -198,7 +198,7 @@ func ParseHTTPS(packet *util.Packet) *base.Destination {
 	tlsPacket := &TLSPacket{}
 	tlsPacket.Parse(buf)
 	if tlsPacket.serverName != "" {
-		return base.NewDestination(tlsPacket.serverName, packet.Hosts.Src().String())
+		return base.NewDestination(tlsPacket.serverName, packet.Hosts.Src().String(), packet.Hosts.Dst().String())
 	}
 	return nil
 }
