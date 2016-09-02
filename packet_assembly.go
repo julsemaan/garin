@@ -70,9 +70,9 @@ func (s *sniffStream) ReassemblyComplete() {
 			if r := recover(); r != nil {
 				err, ok := r.(error)
 				if ok && err.Error() == "runtime error: index out of range" {
-					base.Logger().Debug("Error decoding packet due to its unknown format. This is likely normal.", err.Error())
+					Logger().Debug("Error decoding packet due to its unknown format. This is likely normal.", err.Error())
 				} else {
-					base.Logger().Error("Error decoding packet.", r)
+					Logger().Error("Error decoding packet.", r)
 				}
 			}
 			<-parsingConcurrencyChan
@@ -99,7 +99,7 @@ func (s *sniffStream) ReassemblyComplete() {
 		}
 
 		if destination != nil {
-			base.Logger().Infof("Destination detected protocol='%s' source_ip='%s' host='%s'", destination.Protocol, destination.SourceIp, destination.ServerName)
+			Logger().Infof("Destination detected protocol='%s' source_ip='%s' host='%s'", destination.Protocol, destination.SourceIp, destination.ServerName)
 		}
 	}()
 }

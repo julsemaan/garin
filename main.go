@@ -8,6 +8,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/tcpassembly"
 	"github.com/julsemaan/garin/base"
+	"github.com/op/go-logging"
 	"github.com/revel/cmd/harness"
 	"github.com/revel/revel"
 	_ "net/http/pprof"
@@ -58,6 +59,10 @@ acceptable here`)
 var running = true
 var stopChan = make(chan int, 1)
 
+func Logger() *logging.Logger {
+	return base.LoggerWithLevel(cfg.General.Log_level)
+}
+
 func main() {
 	defer util.Run()()
 	var err error
@@ -82,12 +87,12 @@ func main() {
 	}
 
 	//go func() {
-	//	base.Logger().Info(http.ListenAndServe("localhost:6060", nil))
+	//	Logger().Info(http.ListenAndServe("localhost:6060", nil))
 	//}()
 
 	if !*dontRecordDestinations {
 		for i := 1; i <= *recordingThreads; i++ {
-			base.Logger().Info("Spawning recording thread", i)
+			Logger().Info("Spawning recording thread", i)
 			wg.Add(1)
 			go func() {
 				db := base.NewGarinDB(cfg.Database.Type, cfg.Database.Args)
@@ -117,17 +122,17 @@ func main() {
 	// Set up pcap packet capture
 	var handle *pcap.Handle
 	if *pcapFile != "" {
-		base.Logger().Infof("starting capture from file %q", *pcapFile)
+		Logger().Infof("starting capture from file %q", *pcapFile)
 		handle, err = pcap.OpenOffline(*pcapFile)
 	} else {
-		base.Logger().Infof("starting capture on interface %q", *iface)
+		Logger().Infof("starting capture on interface %q", *iface)
 		handle, err = pcap.OpenLive(*iface, int32(cfg.Capture.Snaplen), true, flushDuration/2)
 	}
 	if err != nil {
 		base.Die("error opening pcap handle: ", err)
 	}
 
-	base.Logger().Info("Using filter", filter)
+	Logger().Info("Using filter", filter)
 	if err := handle.SetBPFFilter(filter); err != nil {
 		base.Die("error setting BPF filter: ", err)
 	}
@@ -139,7 +144,7 @@ func main() {
 	assembler.MaxBufferedPagesPerConnection = *bufferedPerConnection
 	assembler.MaxBufferedPagesTotal = *bufferedTotal
 
-	base.Logger().Info("reading in packets")
+	Logger().Info("reading in packets")
 
 	// We use a DecodingLayerParser here instead of a simpler PacketSource.
 	// This approach should be measurably faster, but is also more rigid.
@@ -168,7 +173,7 @@ func main() {
 		stopChan <- 1
 		wg.Wait()
 		assembler.FlushAll()
-		base.Logger().Infof("processed %d bytes in %v", byteCount, time.Since(start))
+		Logger().Infof("processed %d bytes in %v", byteCount, time.Since(start))
 		os.Exit(0)
 	}
 
@@ -192,7 +197,7 @@ loop:
 		// never see packet data.
 		if time.Now().After(nextFlush) {
 			stats, _ := handle.Stats()
-			base.Logger().Infof("flushing all streams that haven't seen packets in the last %q, pcap stats: %+v", *flushAfter, stats)
+			Logger().Infof("flushing all streams that haven't seen packets in the last %q, pcap stats: %+v", *flushAfter, stats)
 			assembler.FlushOlderThan(time.Now().Add(flushDuration))
 			nextFlush = time.Now().Add(flushDuration / 2)
 		}
@@ -227,21 +232,21 @@ loop:
 		if err != nil {
 			if err.Error() == "EOF" {
 				// Read all packets in the case of a pcap file
-				base.Logger().Info("Read all packets")
+				Logger().Info("Read all packets")
 				wg.Done()
 				return
 			} else {
-				base.Logger().Errorf("error getting packet: %v", err)
+				Logger().Errorf("error getting packet: %v", err)
 				continue
 			}
 		}
 		err = parser.DecodeLayers(data, &decoded)
 		if err != nil {
-			base.Logger().Errorf("error decoding packet: %v", err)
+			Logger().Errorf("error decoding packet: %v", err)
 			continue
 		}
 		if *logAllPackets {
-			base.Logger().Debugf("decoded the following layers: %v", decoded)
+			Logger().Debugf("decoded the following layers: %v", decoded)
 		}
 		byteCount += int64(len(data))
 		// Find either the IPv4 or IPv6 address to use as our network
@@ -260,12 +265,12 @@ loop:
 				if foundNetLayer {
 					assembler.AssembleWithTimestamp(netFlow, &tcp, ci.Timestamp)
 				} else {
-					base.Logger().Debug("could not find IPv4 or IPv6 layer, inoring")
+					Logger().Debug("could not find IPv4 or IPv6 layer, inoring")
 				}
 				continue loop
 			}
 		}
-		base.Logger().Debug("could not find TCP layer")
+		Logger().Debug("could not find TCP layer")
 	}
 	wg.Done()
 

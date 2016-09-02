@@ -1,18 +1,30 @@
 package base
 
 import (
+	"fmt"
 	"github.com/op/go-logging"
 )
 
 var logger *logging.Logger
+var loggerBackend logging.Backend
+
+func LoggerWithLevel(levelStr string) *logging.Logger {
+	Logger()
+	level, err := logging.LogLevel(levelStr)
+	if err != nil {
+		fmt.Println("Cannot find log level : " + levelStr)
+	}
+	leveledBackend := logging.AddModuleLevel(loggerBackend)
+	leveledBackend.SetLevel(level, "")
+	logging.SetBackend(leveledBackend)
+	return Logger()
+}
 
 func Logger() *logging.Logger {
 	if logger == nil {
 		logger = logging.MustGetLogger("Garin")
-		var backend1, _ = logging.NewSyslogBackend("garin")
-		var backend1Leveled = logging.AddModuleLevel(backend1)
-		backend1Leveled.SetLevel(logging.INFO, "")
-		logging.SetBackend(backend1Leveled)
+		loggerBackend, _ = logging.NewSyslogBackend("garin")
+		logging.SetBackend(loggerBackend)
 	}
 	return logger
 }

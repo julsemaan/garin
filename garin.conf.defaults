@@ -1,4 +1,5 @@
 [general]
+log-level=INFO
 parsing-concurrency=2
 recording-threads=1
 dont-record-destinations=false

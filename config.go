@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/julsemaan/garin/base"
 	"gopkg.in/gcfg.v1"
@@ -11,6 +12,7 @@ const DEFAULT_CONF_FILE = "garin.conf.defaults"
 
 type Config struct {
 	General struct {
+		Log_level                string
 		Parsing_concurrency      int
 		Recording_threads        int
 		Dont_record_destinations bool
@@ -55,10 +57,10 @@ func BuildConfig(filename string) *Config {
 			if reflect.Value(field).Interface() != reflect.Zero(field.Type()).Interface() {
 				default_field.Set(reflect.Value(field))
 			} else {
-				base.Logger().Infof("Not overriding default value for field %s - %s since the one in the configuration is the zero value", reflect_default_cfg.Type().Field(i).Name, default_cfg_section.Type().Field(j).Name)
+				//fmt.Println("Not overriding default value for field %s - %s", reflect_default_cfg.Type().Field(i).Name, default_cfg_section.Type().Field(j).Name)
 			}
 		}
 	}
-	base.Logger().Info("Starting using configuration : ", spew.Sdump(default_cfg))
+	fmt.Println("Starting using configuration : ", spew.Sdump(default_cfg))
 	return default_cfg
 }
