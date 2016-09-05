@@ -31,5 +31,5 @@ func Logger() *logging.Logger {
 
 func Die(args ...interface{}) {
 	Logger().Critical(args...)
-	panic(args)
+	panic("Application issue. Check logs for details.")
 }
