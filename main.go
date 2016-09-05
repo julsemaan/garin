@@ -129,7 +129,7 @@ func main() {
 		handle, err = pcap.OpenLive(*iface, int32(cfg.Capture.Snaplen), true, flushDuration/2)
 	}
 	if err != nil {
-		base.Die("error opening pcap handle: ", err)
+		base.Die("error opening pcap handle: ", err.Error())
 	}
 
 	Logger().Info("Using filter", filter)
