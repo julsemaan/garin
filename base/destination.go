@@ -1,6 +1,8 @@
 package base
 
 import (
+	"crypto/md5"
+	"fmt"
 	"time"
 )
 
@@ -10,6 +12,10 @@ type Destination struct {
 	ServerName    string    `db:"server_name"`
 	Protocol      string    `db:"protocol"`
 	Timestamp     time.Time `db:"timestamp"`
+}
+
+func (self *Destination) Hash() string {
+	return fmt.Sprintf("%x", md5.Sum([]byte(self.SourceIp+self.DestinationIp+self.ServerName+self.Protocol)))
 }
 
 func NewDestination(serverName string, sourceIp string, destIp string) *Destination {

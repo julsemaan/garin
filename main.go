@@ -55,6 +55,10 @@ Connections which have buffered packets (they've gotten packets out of order and
 are waiting for old packets to fill the gaps) are flushed after they're this old
 (their oldest gap is skipped).  Any string parsed by time.ParseDuration is
 acceptable here`)
+var debounceDestinations = flag.String("debounce_destinations", cfg.Database.Debounce_destinations, `
+Debounce the destinations recording by the duration specified in this parameter.
+If set to 20s, then the same destination will only be saved once every 20 seconds.
+This can be used to reduce the logging of all activity related to a domain (like fetching HTML + assets)`)
 
 var running = true
 var stopChan = make(chan int, 1)
@@ -84,6 +88,13 @@ func main() {
 	flushDuration, err := time.ParseDuration(*flushAfter)
 	if err != nil {
 		base.Die("invalid flush duration: ", *flushAfter)
+	}
+
+	debounceThreshold, err := time.ParseDuration(*debounceDestinations)
+	if err != nil {
+		base.Die("invalid debounce destinations duraiton: ", *debounceDestinations)
+	} else {
+		recordingQueue.SetDebounceThreshold(debounceThreshold)
 	}
 
 	//go func() {

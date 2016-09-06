@@ -27,8 +27,9 @@ type Config struct {
 		Flush_after             string
 	}
 	Database struct {
-		Type string
-		Args string
+		Type                  string
+		Args                  string
+		Debounce_destinations string
 	}
 }
 
