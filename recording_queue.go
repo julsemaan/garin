@@ -93,13 +93,14 @@ func (self *RecordingQueue) saveWithDebounce(destination *base.Destination, db b
 	if self.DebounceThreshold != 0 {
 		self.debounceMutex.Lock()
 		defer self.debounceMutex.Unlock()
-		info := self.debounceMap[destination.Hash()]
+		hash := destination.Hash()
+		info := self.debounceMap[hash]
 		if info != nil {
 			Logger().Debug("Updating entry in debounce map")
-			self.debounceMap[destination.Hash()].lastSave = time.Now()
+			self.debounceMap[hash].lastSave = time.Now()
 		} else {
 			Logger().Debug("Creating entry in debounce map")
-			self.debounceMap[destination.Hash()] = &DebouncedRecording{time.Now(), destination}
+			self.debounceMap[hash] = &DebouncedRecording{time.Now(), destination}
 		}
 	} else {
 		destination.Save(db)
