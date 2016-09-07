@@ -61,7 +61,9 @@ func (self *RecordingQueue) SetDebounceThreshold(debounceThreshold time.Duration
 	self.DebounceThreshold = debounceThreshold
 	self.debounceMap = make(map[string]*DebouncedRecording)
 	go func() {
-		tick := time.Tick(time.Duration(20 * time.Second))
+		tickSeconds := debounceThreshold / 2
+		Logger().Infof("Debounce worker will run every %s", tickSeconds)
+		tick := time.Tick(tickSeconds)
 		for _ = range tick {
 			self.workDebounceMap()
 		}
