@@ -19,7 +19,7 @@ func (self *Destination) Hash() string {
 }
 
 func NewDestination(serverName string, sourceIp string, destIp string) *Destination {
-	destination := &Destination{ServerName: serverName, SourceIp: sourceIp, DestinationIp: destIp, Timestamp: time.Now()}
+	destination := &Destination{ServerName: serverName, SourceIp: sourceIp, DestinationIp: destIp}
 	return destination
 }
 
