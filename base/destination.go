@@ -24,7 +24,7 @@ func NewDestination(serverName string, sourceIp string, destIp string) *Destinat
 }
 
 func (self *Destination) Save(db GarinDB) {
-	Logger().Debug("Saving destination")
+	Logger().Debugf("Saving destination - %s", self.Hash())
 	db.RecordDestination(self)
-	Logger().Debug("Destination saved")
+	Logger().Debugf("Destination saved - %s", self.Hash())
 }
