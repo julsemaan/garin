@@ -58,16 +58,19 @@ func (self *RecordingQueue) shiftDebounced() *base.Destination {
 }
 
 func (self *RecordingQueue) SetDebounceThreshold(debounceThreshold time.Duration) {
-	self.DebounceThreshold = debounceThreshold
-	self.debounceMap = make(map[string]*DebouncedRecording)
-	go func() {
-		tickSeconds := debounceThreshold / 2
-		Logger().Infof("Debounce worker will run every %s", tickSeconds)
-		tick := time.Tick(tickSeconds)
-		for _ = range tick {
-			self.workDebounceMap()
-		}
-	}()
+	Logger().Debugf("Debounce threshold set to %s", debounceThreshold)
+	if debounceThreshold.Seconds() != 0 {
+		self.DebounceThreshold = debounceThreshold
+		self.debounceMap = make(map[string]*DebouncedRecording)
+		go func() {
+			tickSeconds := debounceThreshold / 2
+			Logger().Infof("Debounce worker will run every %s", tickSeconds)
+			tick := time.Tick(tickSeconds)
+			for _ = range tick {
+				self.workDebounceMap()
+			}
+		}()
+	}
 }
 
 func (self *RecordingQueue) workDebounceMap() {
