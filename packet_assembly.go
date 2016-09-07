@@ -85,7 +85,6 @@ func (s *sniffStream) ReassemblyComplete() {
 			destination = ParseHTTP(http_packet)
 			if destination != nil {
 				destination.Protocol = "HTTP"
-				recordingQueue.push(destination)
 			}
 		}
 
@@ -94,12 +93,13 @@ func (s *sniffStream) ReassemblyComplete() {
 			destination = ParseHTTPS(https_packet)
 			if destination != nil {
 				destination.Protocol = "TLS/SSL"
-				recordingQueue.push(destination)
 			}
 		}
 
 		if destination != nil {
-			Logger().Infof("Destination detected protocol='%s' source_ip='%s' destination_ip='%s' host='%s'", destination.Protocol, destination.SourceIp, destination.DestinationIp, destination.ServerName)
+			destination.Timestamp = s.start
+			recordingQueue.push(destination)
+			Logger().Infof("Destination detected protocol='%s' source_ip='%s' destination_ip='%s' host='%s' packet_timestamp='%s'", destination.Protocol, destination.SourceIp, destination.DestinationIp, destination.ServerName, destination.Timestamp)
 		}
 	}()
 }
