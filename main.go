@@ -92,7 +92,7 @@ func main() {
 
 	debounceThreshold, err := time.ParseDuration(*debounceDestinations)
 	if err != nil {
-		base.Die("invalid debounce destinations duraiton: ", *debounceDestinations)
+		base.Die("invalid debounce destinations duration: ", *debounceDestinations)
 	} else {
 		recordingQueue.SetDebounceThreshold(debounceThreshold)
 	}
