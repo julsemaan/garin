@@ -26,6 +26,5 @@ func NewDestination(serverName string, sourceIp string, destIp string) *Destinat
 func (self *Destination) Save(db GarinDB) {
 	Logger().Debug("Saving destination")
 	db.RecordDestination(self)
-	//db.Handle.MustExec(`INSERT INTO destinations (source_ip, server_name, timestamp) VALUES('allo', 'allo', 0)`)
 	Logger().Debug("Destination saved")
 }
