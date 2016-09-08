@@ -22,13 +22,13 @@ import (
 
 var cfgFile = flag.String("c", "/etc/garin.conf", "Configuration to use for execution")
 var cfg = BuildConfig(*cfgFile)
-var params = NewParams(*cfg)
+var params = NewParams(cfg)
 
 var wg sync.WaitGroup
 
 var recordingQueue = NewRecordingQueue()
 
-var parsingConcurrencyChan = make(chan int, params.ParsingConcurrency)
+var parsingConcurrencyChan = make(chan int, *params.ParsingConcurrency)
 
 var running = true
 var stopChan = make(chan int, 1)
@@ -43,12 +43,12 @@ func main() {
 
 	filter := "tcp port " + strings.Join(params.AllPorts, " or ")
 
-	flushDuration, err := time.ParseDuration(params.FlushAfter)
+	flushDuration, err := time.ParseDuration(*params.FlushAfter)
 	if err != nil {
 		base.Die("invalid flush duration: ", params.FlushAfter)
 	}
 
-	debounceThreshold, err := time.ParseDuration(params.DebounceDestinations)
+	debounceThreshold, err := time.ParseDuration(*params.DebounceDestinations)
 	if err != nil {
 		base.Die("invalid debounce destinations duration: ", params.DebounceDestinations)
 	} else {
@@ -59,8 +59,8 @@ func main() {
 	//	Logger().Info(http.ListenAndServe("localhost:6060", nil))
 	//}()
 
-	if !params.DontRecordDestinations {
-		for i := 1; i <= params.RecordingThreads; i++ {
+	if !*params.DontRecordDestinations {
+		for i := 1; i <= *params.RecordingThreads; i++ {
 			Logger().Info("Spawning recording thread", i)
 			wg.Add(1)
 			go func() {
@@ -90,12 +90,12 @@ func main() {
 
 	// Set up pcap packet capture
 	var handle *pcap.Handle
-	if params.PcapFile != "" {
-		Logger().Infof("starting capture from file %q", params.PcapFile)
-		handle, err = pcap.OpenOffline(params.PcapFile)
+	if *params.PcapFile != "" {
+		Logger().Infof("starting capture from file %q", *params.PcapFile)
+		handle, err = pcap.OpenOffline(*params.PcapFile)
 	} else {
-		Logger().Infof("starting capture on interface %q", params.Iface)
-		handle, err = pcap.OpenLive(params.Iface, int32(cfg.Capture.Snaplen), true, flushDuration/2)
+		Logger().Infof("starting capture on interface %q", *params.Iface)
+		handle, err = pcap.OpenLive(*params.Iface, int32(cfg.Capture.Snaplen), true, flushDuration/2)
 	}
 	if err != nil {
 		base.Die("error opening pcap handle: ", err.Error())
@@ -110,8 +110,8 @@ func main() {
 	streamFactory := &sniffStreamFactory{}
 	streamPool := tcpassembly.NewStreamPool(streamFactory)
 	assembler := tcpassembly.NewAssembler(streamPool)
-	assembler.MaxBufferedPagesPerConnection = params.BufferedPerConnection
-	assembler.MaxBufferedPagesTotal = params.BufferedTotal
+	assembler.MaxBufferedPagesPerConnection = *params.BufferedPerConnection
+	assembler.MaxBufferedPagesTotal = *params.BufferedTotal
 
 	Logger().Info("reading in packets")
 
@@ -214,7 +214,7 @@ loop:
 			Logger().Errorf("error decoding packet: %v", err)
 			continue
 		}
-		if params.LogAllPackets {
+		if *params.LogAllPackets {
 			Logger().Debugf("decoded the following layers: %v", decoded)
 		}
 		byteCount += int64(len(data))
