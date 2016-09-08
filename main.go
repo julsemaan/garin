@@ -14,7 +14,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"regexp"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -23,42 +22,13 @@ import (
 
 var cfgFile = flag.String("c", "/etc/garin.conf", "Configuration to use for execution")
 var cfg = BuildConfig(*cfgFile)
-
-var unencryptedPorts = make(map[string]bool)
-var encryptedPorts = make(map[string]bool)
-
-var parsingConcurrency = flag.Int("parsing-concurrency", cfg.General.Parsing_concurrency, "Amount of concurrent threads that will parse the incoming traffic")
-var parsingConcurrencyChan = make(chan int, *parsingConcurrency)
-
-var recordingThreads = flag.Int("recording-threads", cfg.General.Recording_threads, "Amount of concurrent threads that will work the recording queue (used to persist parsed data)")
-var dontRecordDestinations = flag.Bool("dont-record-destinations", cfg.General.Dont_record_destinations, "Don't record the destinations in the DB backend")
+var params = NewParams(*cfg)
 
 var wg sync.WaitGroup
 
 var recordingQueue = NewRecordingQueue()
 
-var unencryptedPortsArg = flag.String("unencrypted-ports", cfg.Capture.Unencrypted_ports, "The ports on which to parse unencrypted HTTP traffic")
-var encryptedPortsArg = flag.String("encrypted-ports", cfg.Capture.Encrypted_ports, "The ports on which to parse encrypted HTTPS traffic")
-
-var iface = flag.String("i", cfg.Capture.Interface, "Interface to get packets from")
-var pcapFile = flag.String("o", "", "PCAP file to read from (ignores -i)")
-var logAllPackets = flag.Bool("v", false, "Log whenever we see a packet")
-var bufferedPerConnection = flag.Int("connection-max-buffer", cfg.Capture.Buffered_per_connection, `
-Max packets to buffer for a single connection before skipping over a gap in data
-and continuing to stream the connection after the buffer.  If zero or less, this
-is infinite.`)
-var bufferedTotal = flag.Int("total-max-buffer", cfg.Capture.Total_max_buffer, `
-Max packets to buffer total before skipping over gaps in connections and
-continuing to stream connection data.  If zero or less, this is infinite`)
-var flushAfter = flag.String("flush-after", cfg.Capture.Flush_after, `
-Connections which have buffered packets (they've gotten packets out of order and
-are waiting for old packets to fill the gaps) are flushed after they're this old
-(their oldest gap is skipped).  Any string parsed by time.ParseDuration is
-acceptable here`)
-var debounceDestinations = flag.String("debounce-destinations", cfg.Database.Debounce_destinations, `
-Debounce the destinations recording by the duration specified in this parameter.
-If set to 20s, then the same destination will only be saved once every 20 seconds.
-This can be used to reduce the logging of all activity related to a domain (like fetching HTML + assets)`)
+var parsingConcurrencyChan = make(chan int, params.ParsingConcurrency)
 
 var running = true
 var stopChan = make(chan int, 1)
@@ -71,28 +41,16 @@ func main() {
 	defer util.Run()()
 	var err error
 
-	var allPorts []string
-	ports := regexp.MustCompile(",").Split(*unencryptedPortsArg, -1)
-	allPorts = append(allPorts, ports...)
-	for _, port := range ports {
-		unencryptedPorts[port] = true
-	}
-	ports = regexp.MustCompile(",").Split(*encryptedPortsArg, -1)
-	allPorts = append(allPorts, ports...)
-	for _, port := range ports {
-		encryptedPorts[port] = true
-	}
+	filter := "tcp port " + strings.Join(params.AllPorts, " or ")
 
-	filter := "tcp port " + strings.Join(allPorts, " or ")
-
-	flushDuration, err := time.ParseDuration(*flushAfter)
+	flushDuration, err := time.ParseDuration(params.FlushAfter)
 	if err != nil {
-		base.Die("invalid flush duration: ", *flushAfter)
+		base.Die("invalid flush duration: ", params.FlushAfter)
 	}
 
-	debounceThreshold, err := time.ParseDuration(*debounceDestinations)
+	debounceThreshold, err := time.ParseDuration(params.DebounceDestinations)
 	if err != nil {
-		base.Die("invalid debounce destinations duration: ", *debounceDestinations)
+		base.Die("invalid debounce destinations duration: ", params.DebounceDestinations)
 	} else {
 		recordingQueue.SetDebounceThreshold(debounceThreshold)
 	}
@@ -101,8 +59,8 @@ func main() {
 	//	Logger().Info(http.ListenAndServe("localhost:6060", nil))
 	//}()
 
-	if !*dontRecordDestinations {
-		for i := 1; i <= *recordingThreads; i++ {
+	if !params.DontRecordDestinations {
+		for i := 1; i <= params.RecordingThreads; i++ {
 			Logger().Info("Spawning recording thread", i)
 			wg.Add(1)
 			go func() {
@@ -132,12 +90,12 @@ func main() {
 
 	// Set up pcap packet capture
 	var handle *pcap.Handle
-	if *pcapFile != "" {
-		Logger().Infof("starting capture from file %q", *pcapFile)
-		handle, err = pcap.OpenOffline(*pcapFile)
+	if params.PcapFile != "" {
+		Logger().Infof("starting capture from file %q", params.PcapFile)
+		handle, err = pcap.OpenOffline(params.PcapFile)
 	} else {
-		Logger().Infof("starting capture on interface %q", *iface)
-		handle, err = pcap.OpenLive(*iface, int32(cfg.Capture.Snaplen), true, flushDuration/2)
+		Logger().Infof("starting capture on interface %q", params.Iface)
+		handle, err = pcap.OpenLive(params.Iface, int32(cfg.Capture.Snaplen), true, flushDuration/2)
 	}
 	if err != nil {
 		base.Die("error opening pcap handle: ", err.Error())
@@ -152,8 +110,8 @@ func main() {
 	streamFactory := &sniffStreamFactory{}
 	streamPool := tcpassembly.NewStreamPool(streamFactory)
 	assembler := tcpassembly.NewAssembler(streamPool)
-	assembler.MaxBufferedPagesPerConnection = *bufferedPerConnection
-	assembler.MaxBufferedPagesTotal = *bufferedTotal
+	assembler.MaxBufferedPagesPerConnection = params.BufferedPerConnection
+	assembler.MaxBufferedPagesTotal = params.BufferedTotal
 
 	Logger().Info("reading in packets")
 
@@ -208,7 +166,7 @@ loop:
 		// never see packet data.
 		if time.Now().After(nextFlush) {
 			stats, _ := handle.Stats()
-			Logger().Infof("flushing all streams that haven't seen packets in the last %q, pcap stats: %+v", *flushAfter, stats)
+			Logger().Infof("flushing all streams that haven't seen packets in the last %q, pcap stats: %+v", params.FlushAfter, stats)
 			assembler.FlushOlderThan(time.Now().Add(flushDuration))
 			nextFlush = time.Now().Add(flushDuration / 2)
 		}
@@ -256,7 +214,7 @@ loop:
 			Logger().Errorf("error decoding packet: %v", err)
 			continue
 		}
-		if *logAllPackets {
+		if params.LogAllPackets {
 			Logger().Debugf("decoded the following layers: %v", decoded)
 		}
 		byteCount += int64(len(data))

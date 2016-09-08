@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/julsemaan/garin/base"
 	"gopkg.in/gcfg.v1"
 	"reflect"
@@ -62,6 +60,6 @@ func BuildConfig(filename string) *Config {
 			}
 		}
 	}
-	fmt.Println("Starting using configuration : ", spew.Sdump(default_cfg))
+	//fmt.Println("Starting using configuration : ", spew.Sdump(default_cfg))
 	return default_cfg
 }

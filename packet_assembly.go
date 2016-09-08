@@ -80,7 +80,7 @@ func (s *sniffStream) ReassemblyComplete() {
 		}()
 
 		var destination *base.Destination
-		if unencryptedPorts[s.transport.Src().String()] || unencryptedPorts[s.transport.Dst().String()] {
+		if params.UnencryptedPorts[s.transport.Src().String()] || params.UnencryptedPorts[s.transport.Dst().String()] {
 			http_packet := &GarinUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
 			destination = ParseHTTP(http_packet)
 			if destination != nil {
@@ -88,7 +88,7 @@ func (s *sniffStream) ReassemblyComplete() {
 			}
 		}
 
-		if encryptedPorts[s.transport.Src().String()] || encryptedPorts[s.transport.Dst().String()] {
+		if params.EncryptedPorts[s.transport.Src().String()] || params.EncryptedPorts[s.transport.Dst().String()] {
 			https_packet := &GarinUtil.Packet{Hosts: s.net, Ports: s.transport, Payload: s.bytes}
 			destination = ParseHTTPS(https_packet)
 			if destination != nil {
