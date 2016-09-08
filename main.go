@@ -43,19 +43,19 @@ var encryptedPortsArg = flag.String("encrypted-ports", cfg.Capture.Encrypted_por
 var iface = flag.String("i", cfg.Capture.Interface, "Interface to get packets from")
 var pcapFile = flag.String("o", "", "PCAP file to read from (ignores -i)")
 var logAllPackets = flag.Bool("v", false, "Log whenever we see a packet")
-var bufferedPerConnection = flag.Int("connection_max_buffer", cfg.Capture.Buffered_per_connection, `
+var bufferedPerConnection = flag.Int("connection-max-buffer", cfg.Capture.Buffered_per_connection, `
 Max packets to buffer for a single connection before skipping over a gap in data
 and continuing to stream the connection after the buffer.  If zero or less, this
 is infinite.`)
-var bufferedTotal = flag.Int("total_max_buffer", cfg.Capture.Total_max_buffer, `
+var bufferedTotal = flag.Int("total-max-buffer", cfg.Capture.Total_max_buffer, `
 Max packets to buffer total before skipping over gaps in connections and
 continuing to stream connection data.  If zero or less, this is infinite`)
-var flushAfter = flag.String("flush_after", cfg.Capture.Flush_after, `
+var flushAfter = flag.String("flush-after", cfg.Capture.Flush_after, `
 Connections which have buffered packets (they've gotten packets out of order and
 are waiting for old packets to fill the gaps) are flushed after they're this old
 (their oldest gap is skipped).  Any string parsed by time.ParseDuration is
 acceptable here`)
-var debounceDestinations = flag.String("debounce_destinations", cfg.Database.Debounce_destinations, `
+var debounceDestinations = flag.String("debounce-destinations", cfg.Database.Debounce_destinations, `
 Debounce the destinations recording by the duration specified in this parameter.
 If set to 20s, then the same destination will only be saved once every 20 seconds.
 This can be used to reduce the logging of all activity related to a domain (like fetching HTML + assets)`)
