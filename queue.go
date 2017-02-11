@@ -16,13 +16,13 @@ func NewQueue() *Queue {
 	return queue
 }
 
-func (self *Queue) push(o interface{}) {
+func (self *Queue) Push(o interface{}) {
 	self.queueMutex.Lock()
 	self.queue = append(self.queue, o)
 	self.queueMutex.Unlock()
 }
 
-func (self *Queue) shift() interface{} {
+func (self *Queue) Shift() interface{} {
 	self.queueMutex.Lock()
 	var o interface{}
 	if len(self.queue) > 0 {
@@ -32,6 +32,6 @@ func (self *Queue) shift() interface{} {
 	return o
 }
 
-func (self *Queue) empty() bool {
+func (self *Queue) IsEmpty() bool {
 	return len(self.queue) == 0
 }

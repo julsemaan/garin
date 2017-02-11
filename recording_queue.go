@@ -30,15 +30,15 @@ func NewRecordingQueue() *RecordingQueue {
 }
 
 func (self *RecordingQueue) push(destination *base.Destination) {
-	self.queue.push(destination)
+	self.queue.Push(destination)
 }
 
 func (self *RecordingQueue) empty() bool {
-	return self.queue.empty() && self.debouncedQueue.empty()
+	return self.queue.IsEmpty() && self.debouncedQueue.IsEmpty()
 }
 
 func (self *RecordingQueue) _shift(queue *Queue) *base.Destination {
-	o := queue.shift()
+	o := queue.Shift()
 	if o == nil {
 		return nil
 	}
@@ -81,7 +81,7 @@ func (self *RecordingQueue) workDebounceMap() {
 	for hash, info := range self.debounceMap {
 		if info.lastSave.Unix()+int64(self.DebounceThreshold.Seconds()) > time.Now().Unix() {
 			Logger().Debugf("Entry %s is ready to be saved", hash)
-			self.debouncedQueue.push(info.destination)
+			self.debouncedQueue.Push(info.destination)
 			toDelete = append(toDelete, hash)
 		}
 	}
